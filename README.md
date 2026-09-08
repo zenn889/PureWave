@@ -1,45 +1,52 @@
-# putar — Android app (branch `android`)
+# putar — Music Player Offline (Android)
 
-Wrapper Android (Capacitor 8) untuk music player web di repo ini
-(branch `main` berisi web app untuk deploy Vercel; branch `android`
-berisi proyek Android + salinan aset web di `www/`).
+Aplikasi Android pemutar musik offline dari penyimpanan internal HP.
+Tanpa iklan, tanpa akun, tanpa internet — semua audio di perangkatmu
+dipindai dan dimainkan lokal.
 
-Hasil build dirilis sebagai APK di GitHub Releases:
-https://github.com/zenn889/music-player/releases
+## Fitur
 
-## Bangun sendiri APK-nya
+- **Pustaka otomatis**: sekali izinkan akses audio, semua lagu di HP
+  (MediaStore) dimuat ke pustaka — judul, artis, durasi, urut abjad.
+  Pustaka tersimpan; tiap app dibuka langsung muncul + sinkron diam-diam
+  (lagu baru otomatis masuk).
+- **Pemutar lengkap**: play/pause, next/prev, seek, volume, mute, shuffle,
+  repeat (semua/satu lagu), visualizer frekuensi real-time, piringan
+  animasi berwarna mengikuti lagu.
+- **Hi-res**: file FLAC/WAV >48kHz terdeteksi & ditandai "Hi-Res xxxkHz"
+  (output tetap mengikuti kemampuan DAC HP — bukan bit-perfect; DSD tidak
+  didukung).
+- **Tambah file manual**: tombol "Tambah audio" membuka picker audio asli
+  Android (file yang dipilih tidak diunggah ke mana pun).
+- 100% offline: aset aplikasi & font dibundel lokal.
 
-Prasyarat: Node 20+, JDK 21, Android SDK (platform 36, build-tools 36).
+## Unduh
+
+APK di GitHub Releases: https://github.com/zenn889/music-player/releases
+(pilih versi terbaru, download `putar-vX.Y.Z.apk`).
+
+## Bangun sendiri
+
+Prasyarat: Node 20+, JDK 21, Android SDK (platform 36).
 
     npm install
-    npx cap sync android        # salin www/ -> android/app/src/main/assets/public
+    npx cap sync android        # www/ -> android/app/src/main/assets/public
     cd android
-    ./gradlew assembleDebug     # hasil: app/build/outputs/apk/debug/app-debug.apk
+    ./gradlew assembleDebug     # -> app/build/outputs/apk/debug/app-debug.apk
 
-APK debug ditandatangani debug keystore lokal — cukup untuk sideload.
-Untuk Play Store nanti: konfigurasi signing release di
-`android/app/build.gradle` dengan keystore sendiri.
+## Struktur
+
+    www/               UI aplikasi (HTML/CSS/JS + font lokal) — sumber UI
+    android/           proyek native Android (Capacitor)
+    MainActivity.java  picker audio + bridge scan MediaStore (PutarNative)
+    MusicServer.java   HTTP server lokal utk streaming lagu (Range + CORS)
 
 ## Catatan teknis
 
-- `MainActivity.java` menambahkan:
-  - Bridge file picker asli Android utk tombol "Tambah file".
-  - Bridge `PutarNative.scan()/port()/hasPerm()` — pindai MediaStore
-    (judul/artis/durasi/mime + sample rate utk penanda hi-res).
-  - `MusicServer.java`: HTTP server lokal (dukung Range + CORS) utk
-    streaming lagu MediaStore ke WebView — seek mulus & visualizer hidup.
-- Pustaka musik HP tersimpan di localStorage app: daftar otomatis dimuat
-  tiap app dibuka (tanpa internet), lalu disinkron diam-diam bila izin
-  sudah diberikan — lagu baru ikut tanpa perlu scan manual.
-- **Hi-res**: file FLAC/WAV hi-res (mis. 24-bit/96-192kHz) ikut terpindai
-  dan diputar; lagu >48kHz ditandai "Hi-Res xxxkHz" di barisnya. Catatan
-  jujur: output melalui WebView di-resample ke kemampuan DAC HP — bukan
-  bit-perfect, dan DSD tidak didukung. Bit-perfect/Direct-DAC/USB butuh
-  mesin audio native (proyek terpisah).
-- Aset web dimuat lokal dari dalam APK (offline). Service worker sengaja
-  nonaktif di dalam app (guard localhost).
-- WebView dikonfigurasi: mixed content diizinkan (lagu MediaStore diputar via
-  http://127.0.0.1 dari halaman https://localhost) + zoom (pinch/double-tap)
-  dimatikan via settings native, viewport user-scalable=no, dan
-  `touch-action: manipulation` di CSS.
-- Aplikasi memakai id `com.zenn889.putar`, ikon mengikuti artwork "putar".
+- WebView dikonfigurasi: mixed content diizinkan (audio dari
+  http://127.0.0.1 di halaman https://localhost), zoom mati
+  (native + viewport user-scalable=no + touch-action).
+- Pustaka perangkat disimpan di localStorage app; URL lagu dibangun ulang
+  dari port server saat boot.
+- Izin: READ_MEDIA_AUDIO (Android 13+) / READ_EXTERNAL_STORAGE (7–12).
+- Aplikasi id `com.zenn889.putar`; update via APK langsung (debug-signed).

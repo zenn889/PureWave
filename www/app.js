@@ -49,11 +49,6 @@ function kindLabel(t) {
 const AUDIO_EXT = /\.(mp3|ogg|oga|wav|m4a|aac|flac|opus|webm|weba)$/i;
 
 const STORE_KEY = 'putar.playlist.v1';
-const DEMOS = [
-  { title: 'SoundHelix — Song 1 (demo)',  url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
-  { title: 'SoundHelix — Song 2 (demo)',  url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
-  { title: 'SoundHelix — Song 9 (demo)',  url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3' }
-];
 
 /* ---------- state ---------- */
 const state = {
@@ -85,11 +80,8 @@ const dom = {
   btnPlay: $('#btnPlay'), btnPrev: $('#btnPrev'), btnNext: $('#btnNext'),
   btnShuffle: $('#btnShuffle'), btnRepeat: $('#btnRepeat'),
   btnMute: $('#btnMute'), vol: $('#vol'),
-  btnFiles: $('#btnFiles'), fileInput: $('#fileInput'), btnUrl: $('#btnUrl'),
+  btnFiles: $('#btnFiles'), fileInput: $('#fileInput'),
   stage: $('#stage'),
-  modal: $('#modal'), urlInput: $('#urlInput'), urlForm: $('#urlForm'),
-  btnCancel: $('#btnCancel'), modalClose: $('#modalClose'),
-  emptyDemos: $('#emptyDemos'), modalDemos: $('#modalDemos'),
   scanBar: $('#scanBar'), scanTitle: $('#scanTitle'), scanSub: $('#scanSub'), scanState: $('#scanState'),
   dropOverlay: $('#dropOverlay'), toast: $('#toast')
 };
@@ -209,14 +201,6 @@ function removeTrack(i) {
 }
 
 /* ---------- add sources ---------- */
-function addUrlTrack(title, url) {
-  if (!/^https?:\/\//i.test(url)) { toast('URL harus diawali http(s):// dan mengarah ke file audio.'); return false; }
-  state.tracks.push({ id: uid(), title: title || url.split('/').pop().split('?')[0] || url, url, kind: 'url' });
-  if (state.index === -1) setCurrent(0);
-  renderQueue(); save();
-  return true;
-}
-
 function addFiles(fileList) {
   // WebView Android memberi nama file kosong utk hasil picker → terima audio apa pun yang lolos filter input
   const files = Array.from(fileList).filter(f => f.type.startsWith('audio/') || AUDIO_EXT.test(f.name) || f.type === '');
@@ -277,16 +261,6 @@ function renderQueue() {
   });
 
   dom.queue.appendChild(frag);
-}
-
-/* ---------- demo chips ---------- */
-function demoChip(demo) {
-  const b = el('button', 'demo-chip', demo.title.replace(' (demo)', '').replace('SoundHelix — ', ''));
-  b.type = 'button';
-  b.addEventListener('click', () => {
-    if (addUrlTrack(demo.title, demo.url)) toast('Demo ditambahkan ke playlist.');
-  });
-  return b;
 }
 
 /* ============================================================
@@ -523,27 +497,12 @@ function bar(ctx, x, y, w, h) {
 }
 
 /* ============================================================
-   add dialogs: files & URL
+   tambah file dari penyimpanan
    ============================================================ */
 dom.btnFiles.addEventListener('click', () => dom.fileInput.click());
 dom.fileInput.addEventListener('change', () => {
   if (dom.fileInput.files.length) addFiles(dom.fileInput.files);
   dom.fileInput.value = '';
-});
-
-function openModal() {
-  dom.modal.hidden = false;
-  setTimeout(() => dom.urlInput.focus(), 30);
-}
-function closeModal() { dom.modal.hidden = true; dom.urlForm.reset(); }
-dom.btnUrl.addEventListener('click', openModal);
-dom.btnCancel.addEventListener('click', closeModal);
-dom.modalClose.addEventListener('click', closeModal);
-dom.modal.addEventListener('click', (e) => { if (e.target === dom.modal) closeModal(); });
-dom.urlForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const url = dom.urlInput.value.trim();
-  if (addUrlTrack(null, url)) { closeModal(); toast('Lagu ditambahkan ke playlist.'); }
 });
 
 /* ---------- drag & drop ---------- */
@@ -597,12 +556,7 @@ if ('mediaSession' in navigator) {
    ============================================================ */
 document.addEventListener('keydown', (e) => {
   const tag = (e.target.tagName || '').toUpperCase();
-  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') {
-    if (e.key === 'Escape') closeModal();
-    return;
-  }
-  if (e.key === 'Escape') { closeModal(); return; }
-  if (!dom.modal.hidden) return;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return;
   switch (e.key) {
     case ' ': case 'Spacebar':
       e.preventDefault();
@@ -686,12 +640,6 @@ function restore() {
 /* ============================================================
    boot
    ============================================================ */
-// populate demo chips (both empty-state & modal)
-for (const d of DEMOS) {
-  dom.emptyDemos.appendChild(demoChip(d));
-  dom.modalDemos.appendChild(demoChip(d));
-}
-
 /* ============================================================
    scan musik HP — native Android (window.PutarNative.scan)
    pustaka perangkat tersimpan (localStorage) & otomatis dimuat
@@ -820,13 +768,3 @@ if (state.tracks.length === 0) setCurrent(-1);
 sizeEQ();
 drawEQ();
 window.addEventListener('resize', sizeEQ);
-
-/* daftarkan service worker (PWA) — hanya saat di-host via http(s), bukan file:// atau localhost dev */
-if ('serviceWorker' in navigator && /^https:$/.test(location.protocol)) {
-  const host = location.hostname;
-  if (host !== 'localhost' && host !== '127.0.0.1') {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
-    });
-  }
-}

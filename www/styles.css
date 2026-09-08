@@ -1,4 +1,10 @@
-/* ============ putar · music player ============ */
+/* ============ putar · music player offline ============ */
+@font-face{
+  font-family:"Space Grotesk";
+  src:url("fonts/space-grotesk.woff2") format("woff2");
+  font-weight:300 700;
+  font-display:swap;
+}
 :root{
   --bg:#0e0f11;
   --panel:#15161a;
@@ -371,56 +377,6 @@ body.is-playing .track.active .tm{opacity:.4}
 .queue-empty svg{width:44px;height:44px;color:var(--faint);margin-bottom:4px}
 .queue-empty h3{font-size:17px;font-weight:600}
 .queue-empty p{font-size:13.5px;color:var(--muted);line-height:1.55}
-.demo-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:8px}
-.demo-chip{
-  cursor:pointer;border:1px solid var(--line-strong);border-radius:999px;
-  background:transparent;color:var(--muted);font-size:13px;padding:8px 16px;font-weight:500;
-  transition:all .15s;
-}
-.demo-chip:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
-
-.kbd-hint{
-  padding:10px 20px 6px;font-size:11.5px;color:var(--faint);
-  border-top:1px solid var(--line);text-align:center;
-}
-.kbd-hint kbd{
-  font-family:inherit;font-size:10.5px;color:var(--muted);
-  background:rgba(255,255,255,.05);border:1px solid var(--line-strong);
-  border-bottom-width:2px;border-radius:5px;padding:1px 6px;margin:0 1px;
-}
-.note{padding:0 20px 16px;font-size:11.5px;color:var(--faint);text-align:center;line-height:1.5}
-
-/* ---------- modal ---------- */
-.backdrop{
-  position:fixed;inset:0;background:rgba(5,6,8,.74);backdrop-filter:blur(4px);
-  display:grid;place-items:center;z-index:40;padding:18px;
-}
-.modal{
-  width:min(520px,100%);background:var(--panel);border:1px solid var(--line-strong);
-  border-radius:var(--r-lg);padding:22px;box-shadow:var(--shadow);
-}
-.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.modal-head h2{font-size:18px;font-weight:700}
-.icon-btn{
-  width:36px;height:36px;border-radius:50%;display:grid;place-items:center;cursor:pointer;
-  background:transparent;border:none;color:var(--muted);transition:background .12s,color .12s;
-}
-.icon-btn:hover{background:rgba(255,255,255,.07);color:var(--ink)}
-.icon-btn svg{width:16px;height:16px}
-#urlInput{
-  width:100%;height:46px;border-radius:var(--r-md);
-  background:#0e0f11;border:1px solid var(--line-strong);color:var(--ink);
-  font-family:inherit;font-size:14.5px;padding:0 14px;outline:none;
-  transition:border-color .15s, box-shadow .15s;
-}
-#urlInput::placeholder{color:var(--faint)}
-#urlInput:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
-.modal .note{font-size:12px;color:var(--muted);text-align:left;padding:10px 2px 0;line-height:1.55}
-.modal .note strong{color:var(--ink);font-weight:600}
-.modal-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:16px;flex-wrap:wrap}
-.modal-demos{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-.modal-demos .or{font-size:12px;color:var(--faint);margin-right:2px}
-.modal-actions{display:flex;gap:8px;margin-left:auto}
 
 /* ---------- toast ---------- */
 .toast{
@@ -452,7 +408,6 @@ body.is-playing .track.active .tm{opacity:.4}
           padding-bottom:calc(14px + env(safe-area-inset-bottom, 0px))}
   .player{max-width:560px}
   .queue-panel{min-height:430px}
-  .kbd-hint,.note{display:none}
 }
 
 @media (max-width:560px){
