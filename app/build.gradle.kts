@@ -12,13 +12,27 @@ android {
         applicationId = "com.zenn889.putar"
         minSdk = 24
         targetSdk = 36
-        versionCode = 13
-        versionName = "2.6.0"
+        versionCode = 14
+        versionName = "2.7.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file(
+                project.findProperty("putarStoreFile") as String?
+                    ?: error("putarStoreFile belum di-set di ~/.gradle/gradle.properties")
+            )
+            storePassword = project.findProperty("putarStorePass") as String?
+            keyAlias = project.findProperty("putarKeyAlias") as String? ?: "putar"
+            keyPassword = project.findProperty("putarKeyPass") as String?
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -42,6 +56,7 @@ dependencies {
     implementation(composeBom)
 
     implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
 

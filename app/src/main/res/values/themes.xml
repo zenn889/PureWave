@@ -6,4 +6,12 @@
         <item name="android:navigationBarColor">#0E0F11</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
+
+    <!-- tema splash (coral + not musik) yang menutup ke tema utama -->
+    <style name="Theme.Putar.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#FF5A36</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_stat_music</item>
+        <item name="postSplashScreenTheme">@style/Theme.Putar</item>
+        <item name="android:windowBackground">#0E0F11</item>
+    </style>
 </resources>

@@ -19,7 +19,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.Putar">
+        android:theme="@style/Theme.Putar.Splash">
 
         <activity
             android:name=".MainActivity"

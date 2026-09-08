@@ -4,6 +4,9 @@ Music player Android **native** (Kotlin + Jetpack Compose + Media3/ExoPlayer).
 Memutar semua musik dari penyimpanan internal HP. **Tanpa internet, tanpa
 akun, tanpa iklan.**
 
+> **v2.7.0 — rilis final roadmap**: splash screen, onboarding sekali
+> jalan, dan APK release (R8, ~2,4 MB) bertanda tangan keystore sendiri.
+
 ## Fitur
 
 - **Pustaka terstruktur**: tab Lagu / Album / Artis / Folder — browse per
@@ -67,7 +70,9 @@ Prasyarat: JDK 17+, Android SDK (compileSdk 36).
 
 - Versi 2.x = tulis ulang penuh native (framework resmi Android).
   Versi 1.x sebelumnya berbasis WebView sudah tidak dipakai.
-- Min Android 7.0 (API 24). APK debug-signed (cukup utk sideload).
+- Min Android 7.0 (API 24). Sejak v2.7.0 APK dirilis adalah **release**
+  (R8+shrink, signing keystore `putar`); debug-signed hanya untuk
+  pengembangan.
 - Hi-res: FLAC/WAV hi-res ikut terpindai & diputar oleh ExoPlayer.
   Output mengikuti kemampuan DAC HP (bukan bit-perfect; DSD tidak
   didukung oleh ExoPlayer standar).

@@ -13,6 +13,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -98,11 +99,13 @@ import com.zenn889.putar.ui.SimpleEmpty
 import com.zenn889.putar.ui.SortMenuButton
 import com.zenn889.putar.ui.SortOption
 import com.zenn889.putar.ui.TrackContextSheet
+import com.zenn889.putar.ui.WelcomeScreen
 import com.zenn889.putar.ui.buildArtistItems
 import com.zenn889.putar.ui.buildFolderItems
 import com.zenn889.putar.ui.fmtMs
 import com.zenn889.putar.ui.toast
 import com.zenn889.putar.ui.theme.Coral
+import com.zenn889.putar.ui.theme.CoralBright
 import com.zenn889.putar.ui.theme.FaintInk
 import com.zenn889.putar.ui.theme.MutedInk
 import com.zenn889.putar.ui.theme.PutarTheme
@@ -114,6 +117,7 @@ import kotlin.random.Random
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         installCrashLogger(this)
         enableEdgeToEdge()
@@ -221,6 +225,22 @@ private fun nextSpeed(current: Float): Float {
 fun PlayerApp() {
     val context = LocalContext.current.applicationContext
     val repo = remember { MusicRepository(context) }
+
+    // --- onboarding sekali jalan (tampil sebelum apa pun) ---
+    var onboarded by remember {
+        mutableStateOf(
+            context.getSharedPreferences("putar_prefs", Context.MODE_PRIVATE)
+                .getBoolean("onboarded", false)
+        )
+    }
+    if (!onboarded) {
+        WelcomeScreen(onDone = {
+            context.getSharedPreferences("putar_prefs", Context.MODE_PRIVATE)
+                .edit().putBoolean("onboarded", true).apply()
+            onboarded = true
+        })
+        return
+    }
 
     // --- kontrol pemutar (Media3) ---
     var controller by remember { mutableStateOf<MediaController?>(null) }
