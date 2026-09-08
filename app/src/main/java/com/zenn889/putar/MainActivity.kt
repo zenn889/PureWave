@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -76,6 +77,7 @@ import com.zenn889.putar.ui.LibraryList
 import com.zenn889.putar.ui.MiniPlayer
 import com.zenn889.putar.ui.NowPlayingSheet
 import com.zenn889.putar.ui.PlayerMirror
+import com.zenn889.putar.ui.SettingsSheet
 import com.zenn889.putar.ui.fmtMs
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.FaintInk
@@ -125,7 +127,7 @@ private fun readPermission(): String =
 private fun Context.hasReadPermission(): Boolean =
     ContextCompat.checkSelfPermission(this, readPermission()) == PackageManager.PERMISSION_GRANTED
 
-private fun Context.versionName(): String =
+fun Context.versionName(): String =
     runCatching { packageManager.getPackageInfo(packageName, 0).versionName }
         .getOrNull() ?: ""
 
@@ -270,6 +272,7 @@ fun PlayerApp() {
     // --- layar tambahan ---
     var showFullPlayer by remember { mutableStateOf(false) }
     var showEq by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -299,6 +302,7 @@ fun PlayerApp() {
                         totalCount = tracks.size,
                         query = query,
                         onQueryChange = { query = it },
+                        onOpenSettings = { showSettings = true },
                         onPlayAllShuffled = { playFrom(shownTracks, 0, shuffled = true) }
                     )
                     if (shownTracks.isEmpty()) {
@@ -354,6 +358,20 @@ fun PlayerApp() {
         EqualizerSheet(onDismiss = { showEq = false })
     }
 
+    if (showSettings) {
+        SettingsSheet(
+            onEqualizer = {
+                showSettings = false
+                showEq = true
+            },
+            onSleep = {
+                showSettings = false
+                showSleepDialog = true
+            },
+            onDismiss = { showSettings = false }
+        )
+    }
+
     if (showSleepDialog) {
         SleepTimerDialog(
             active = sleepUntil > 0L,
@@ -399,6 +417,7 @@ private fun LibraryHeader(
     totalCount: Int,
     query: String,
     onQueryChange: (String) -> Unit,
+    onOpenSettings: () -> Unit,
     onPlayAllShuffled: () -> Unit
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
@@ -436,6 +455,14 @@ private fun LibraryHeader(
                     color = MutedInk
                 )
             }
+            IconButton(onClick = onOpenSettings) {
+                Icon(
+                    Icons.Filled.Settings,
+                    contentDescription = "Setelan",
+                    tint = MutedInk
+                )
+            }
+            Spacer(Modifier.width(2.dp))
             FilledTonalButton(onClick = onPlayAllShuffled) {
                 Icon(
                     Icons.Filled.Shuffle, contentDescription = null,

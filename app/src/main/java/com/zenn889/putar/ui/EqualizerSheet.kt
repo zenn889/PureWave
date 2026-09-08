@@ -29,6 +29,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -56,8 +57,16 @@ fun EqualizerSheet(onDismiss: () -> Unit) {
     var preset by remember { mutableStateOf(AudioFx.preset(context)) }
     var bands by remember { mutableStateOf(IntArray(AudioFx.BAND_COUNT) { AudioFx.bandLevel(context, it) }) }
     var bassLevel by remember { mutableIntStateOf(AudioFx.bassLevel(context)) }
+    var statusTick by remember { mutableIntStateOf(0) }
 
-    val attached = AudioFx.currentSession() > 0
+    // coba tempel ulang efek ke sesi yang sedang berjalan, lalu segarkan status
+    LaunchedEffect(Unit) {
+        com.zenn889.putar.PlaybackService.current()?.refreshFx()
+        kotlinx.coroutines.delay(300)
+        statusTick++
+    }
+
+    val attached = statusTick >= 0 && AudioFx.currentSession() > 0
     val failed = attached && !AudioFx.available
 
     ModalBottomSheet(
@@ -202,7 +211,16 @@ fun EqualizerSheet(onDismiss: () -> Unit) {
 
             if (!attached) {
                 Text(
-                    "Setelan tersimpan — efek menempel otomatis saat lagu diputar.",
+                    "Efek menempel otomatis saat lagu diputar — ubah setelan dulu bebas.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = FaintInk,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            } else if (!failed) {
+                Text(
+                    "Terpasang di sesi audio (id ${AudioFx.currentSession()})" +
+                        if (enabled) " — aktif." else " — aktifkan switch di atas.",
                     style = MaterialTheme.typography.bodySmall,
                     color = FaintInk,
                     modifier = Modifier.fillMaxWidth(),

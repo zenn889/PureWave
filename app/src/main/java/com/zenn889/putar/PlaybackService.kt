@@ -36,14 +36,40 @@ class PlaybackService : MediaSessionService() {
                 // tempel equalizer/bass ke sesi audio saat tersedia
                 addListener(object : Player.Listener {
                     override fun onEvents(player: Player, events: Player.Events) {
-                        if (events.contains(Player.EVENT_AUDIO_SESSION_ID)) {
-                            val sid = (player as? ExoPlayer)?.audioSessionId ?: 0
-                            if (sid > 0) AudioFx.attach(applicationContext, sid)
+                        if (events.containsAny(
+                                Player.EVENT_AUDIO_SESSION_ID,
+                                Player.EVENT_PLAYBACK_STATE_CHANGED
+                            )
+                        ) {
+                            val sid = (player as? ExoPlayer)?.audioSessionId
+                            if (sid != null && sid > 0) {
+                                AudioFx.attach(applicationContext, sid)
+                            }
                         }
                     }
                 })
             }
+        // kunci sesi audio dengan ID tetap agar efek equalizer selalu menempel
+        val audioManager = getSystemService(AUDIO_SERVICE) as android.media.AudioManager
+        val fixedSession = runCatching { audioManager.generateAudioSessionId() }.getOrDefault(0)
+        if (fixedSession != 0) {
+            runCatching { player.setAudioSessionId(fixedSession) }
+            AudioFx.attach(this, fixedSession)
+        }
         mediaSession = MediaSession.Builder(this, player).build()
+    }
+
+    /** Panggil dari UI: tempel ulang efek ke sesi yang sedang berjalan. */
+    fun refreshFx() {
+        val player = mediaSession?.player
+        if (player != null) {
+            val sid = (player as? ExoPlayer)?.audioSessionId
+            if (sid != null && sid > 0) {
+                AudioFx.attach(applicationContext, sid)
+                return
+            }
+        }
+        AudioFx.applyCurrent(applicationContext)
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =

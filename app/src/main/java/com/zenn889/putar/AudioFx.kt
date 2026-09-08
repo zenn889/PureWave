@@ -3,6 +3,10 @@ package com.zenn889.putar
 import android.content.Context
 import android.media.audiofx.BassBoost
 import android.media.audiofx.Equalizer
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * Equalizer + Bass Boost native (android.media.audiofx), ditempelkan ke sesi
@@ -88,10 +92,10 @@ object AudioFx {
         release()
         sessionId = session
         available = false
+        val c = context.applicationContext
         try {
             val eq = Equalizer(0, session)
             val bb = BassBoost(0, session)
-            val c = context.applicationContext
             val enabled = isEnabled(c)
 
             if (enabled) {
@@ -112,9 +116,22 @@ object AudioFx {
             this.eq = eq
             this.bass = bb
             available = true
-        } catch (_: Exception) {
+            log(c, "attach OK: session=$session enabled=$enabled bands=${
+                (0 until BAND_COUNT).joinToString(",") { bandLevel(c, it).toString() }
+            } bass=${bassLevel(c)}")
+        } catch (e: Exception) {
             release()
             available = false
+            log(c, "attach GAGAL: session=$session err=${e.javaClass.simpleName}: ${e.message}")
+        }
+    }
+
+    /** Tulis baris log equalizer ke <app>/files/eq.log (untuk laporan). */
+    private fun log(c: Context, msg: String) {
+        runCatching {
+            val dir = c.getExternalFilesDir(null) ?: c.filesDir
+            val stamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
+            File(dir, "eq.log").appendText("$stamp  $msg\n")
         }
     }
 
