@@ -1,0 +1,14 @@
+{
+  "name": "putar-android",
+  "version": "1.0.0",
+  "private": true,
+  "description": "putar music player — Android wrapper (Capacitor). Web assets: repo zenn889/music-player (main).",
+  "scripts": {
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/cli": "^8.5.1",
+    "@capacitor/core": "^8.5.1"
+  }
+}

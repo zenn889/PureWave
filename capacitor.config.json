@@ -1,0 +1,9 @@
+{
+  "appId": "com.zenn889.putar",
+  "appName": "putar",
+  "webDir": "www",
+  "backgroundColor": "#0e0f11",
+  "android": {
+    "allowMixedContent": false
+  }
+}
