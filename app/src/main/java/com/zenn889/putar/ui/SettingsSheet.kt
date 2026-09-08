@@ -14,10 +14,15 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Equalizer
+import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PlaylistPlay
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -58,11 +63,16 @@ fun SettingsSheet(
     onEqualizer: () -> Unit,
     onSleep: () -> Unit,
     onPlaylists: () -> Unit,
+    onOpenFilters: () -> Unit,
+    onBackup: () -> Unit,
+    onRestore: () -> Unit,
+    onStats: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showAbout by remember { mutableStateOf(false) }
+    var showTheme by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -90,6 +100,36 @@ fun SettingsSheet(
                 subtitle = if (fxOk) "Aktif — terpasang di sesi audio"
                 else "5 pita, preset, bass boost",
                 onClick = onEqualizer
+            )
+            SettingsRow(
+                icon = Icons.Filled.Palette,
+                title = "Tampilan & tema",
+                subtitle = themeSummary(context),
+                onClick = { showTheme = true }
+            )
+            SettingsRow(
+                icon = Icons.Filled.FilterAlt,
+                title = "Filter pustaka",
+                subtitle = "Pendek, nada dering, duplikat",
+                onClick = onOpenFilters
+            )
+            SettingsRow(
+                icon = Icons.Filled.Assessment,
+                title = "Statistik mendengar",
+                subtitle = "Jumlah putar & menit didengar",
+                onClick = onStats
+            )
+            SettingsRow(
+                icon = Icons.Filled.Backup,
+                title = "Cadangkan data",
+                subtitle = "Favorit & playlist → file JSON",
+                onClick = onBackup
+            )
+            SettingsRow(
+                icon = Icons.Filled.Restore,
+                title = "Pulihkan data",
+                subtitle = "Ambil dari file cadangan",
+                onClick = onRestore
             )
             SettingsRow(
                 icon = Icons.Filled.PlaylistPlay,
@@ -125,6 +165,10 @@ fun SettingsSheet(
                 modifier = Modifier.padding(horizontal = 14.dp)
             )
         }
+    }
+
+    if (showTheme) {
+        ThemeSheet(onDismiss = { showTheme = false })
     }
 
     if (showAbout) {

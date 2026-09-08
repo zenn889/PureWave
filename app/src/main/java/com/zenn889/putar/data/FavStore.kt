@@ -18,6 +18,11 @@ object FavStore {
 
     fun isFavorite(c: Context, uri: String): Boolean = uri in load(c)
 
+    /** Ganti seluruh isi (dipakai restore cadangan). */
+    fun replaceAll(c: Context, uris: Collection<String>) {
+        save(c, uris.toSet())
+    }
+
     /** Tambah/hapus; mengembalikan status baru. */
     fun toggle(c: Context, uri: String): Boolean {
         val current = load(c).toMutableSet()

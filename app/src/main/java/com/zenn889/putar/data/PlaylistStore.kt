@@ -62,6 +62,11 @@ object PlaylistStore {
         save(c, updated)
     }
 
+    /** Ganti seluruh isi (dipakai restore cadangan). */
+    fun replaceAll(c: Context, playlists: List<Playlist>) {
+        save(c, playlists)
+    }
+
     private fun save(c: Context, playlists: List<Playlist>) {
         val arr = JSONArray()
         playlists.forEach { pl ->

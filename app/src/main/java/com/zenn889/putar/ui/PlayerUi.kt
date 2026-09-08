@@ -23,6 +23,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -61,6 +64,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -176,7 +180,9 @@ fun TrackRow(
     track: Track,
     isCurrent: Boolean,
     onClick: () -> Unit,
-    onLongClick: (() -> Unit)? = null
+    onLongClick: (() -> Unit)? = null,
+    onSwipeLeft: (() -> Unit)? = null,
+    onSwipeRight: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -184,6 +190,18 @@ fun TrackRow(
             .clip(RoundedCornerShape(14.dp))
             .background(if (isCurrent) Coral.copy(alpha = 0.08f) else Color.Transparent)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .pointerInput(onSwipeLeft, onSwipeRight) {
+                var acc = 0f
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { _, d -> acc += d },
+                    onDragEnd = {
+                        if (acc <= -110f) onSwipeLeft?.invoke()
+                        else if (acc >= 110f) onSwipeRight?.invoke()
+                        acc = 0f
+                    },
+                    onDragCancel = { acc = 0f }
+                )
+            }
             .padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -239,6 +257,13 @@ fun MiniPlayer(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .pointerInput(onClick) {
+                    var acc = 0f
+                    detectVerticalDragGestures(
+                        onVerticalDrag = { _, d -> acc += d },
+                        onDragEnd = { if (acc <= -90f) onClick() }
+                    )
+                }
                 .clickable(onClick = onClick)
                 .padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically

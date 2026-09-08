@@ -2,6 +2,7 @@ package com.zenn889.putar.ui
 
 import android.net.Uri
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -39,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -148,9 +151,40 @@ fun QueueSheet(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
                             .clickable { onPlay(index) }
-                            .padding(start = 20.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                            .padding(start = 8.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // gagang seret: geser vertikal untuk mengubah urutan
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .pointerInput(index, onMoveUp, onMoveDown) {
+                                    var acc = 0f
+                                    detectVerticalDragGestures(
+                                        onDragEnd = { acc = 0f },
+                                        onDragCancel = { acc = 0f },
+                                        onVerticalDrag = { _, d ->
+                                            acc += d
+                                            while (acc <= -150f) {
+                                                onMoveUp(index)
+                                                acc += 150f
+                                            }
+                                            while (acc >= 150f) {
+                                                onMoveDown(index)
+                                                acc -= 150f
+                                            }
+                                        }
+                                    )
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Filled.DragHandle,
+                                contentDescription = "Ubah urutan",
+                                tint = FaintInk,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                         AlbumArt(entry.artwork, size = 42.dp, shape = RoundedCornerShape(10.dp))
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {

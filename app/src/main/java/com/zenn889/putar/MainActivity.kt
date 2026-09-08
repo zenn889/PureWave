@@ -60,6 +60,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,11 +78,13 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.zenn889.putar.data.Album
+import com.zenn889.putar.data.BackupStore
 import com.zenn889.putar.data.FavStore
 import com.zenn889.putar.data.MusicRepository
 import com.zenn889.putar.data.Playlist
 import com.zenn889.putar.data.PlaylistStore
 import com.zenn889.putar.data.SessionStore
+import com.zenn889.putar.data.StatsStore
 import com.zenn889.putar.data.Track
 import com.zenn889.putar.ui.AddToPlaylistSheet
 import com.zenn889.putar.ui.AlbumCard
@@ -91,6 +94,7 @@ import com.zenn889.putar.ui.BackBar
 import com.zenn889.putar.ui.EqualizerSheet
 import com.zenn889.putar.ui.FolderRow
 import com.zenn889.putar.ui.HeroCard
+import com.zenn889.putar.ui.LibraryFilterDialog
 import com.zenn889.putar.ui.LibraryList
 import com.zenn889.putar.ui.LibraryTab
 import com.zenn889.putar.ui.LibraryTabBar
@@ -106,8 +110,10 @@ import com.zenn889.putar.ui.SettingsSheet
 import com.zenn889.putar.ui.SimpleEmpty
 import com.zenn889.putar.ui.SortMenuButton
 import com.zenn889.putar.ui.SortOption
+import com.zenn889.putar.ui.StatsDialog
 import com.zenn889.putar.ui.TrackContextSheet
 import com.zenn889.putar.ui.TrackRow
+import com.zenn889.putar.ui.TrackStrip
 import com.zenn889.putar.ui.WelcomeScreen
 import com.zenn889.putar.ui.buildArtistItems
 import com.zenn889.putar.ui.buildFolderItems
@@ -120,6 +126,7 @@ import com.zenn889.putar.ui.theme.MutedInk
 import com.zenn889.putar.ui.theme.PutarTheme
 import com.zenn889.putar.ui.theme.SurfaceHigh
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.random.Random
 
@@ -207,6 +214,19 @@ private fun sortedTracks(list: List<Track>, sort: SortOption): List<Track> =
         SortOption.DURASI -> list.sortedBy { it.durationMs }
     }
 
+private fun buildAlbumsFrom(tracks: List<Track>): List<Album> =
+    tracks.filter { it.albumId != null }
+        .groupBy { it.albumId!! }
+        .map { (_, list) ->
+            Album(
+                albumId = list.first().albumId!!,
+                title = list.first().albumTitle ?: "Tanpa album",
+                artist = list.first().artist,
+                songCount = list.size
+            )
+        }
+        .sortedBy { it.title.lowercase() }
+
 private fun readMirror(player: Player): PlayerMirror {
     val meta = player.mediaMetadata
     val has = player.mediaItemCount > 0
@@ -265,6 +285,10 @@ fun PlayerApp() {
     var controller by remember { mutableStateOf<MediaController?>(null) }
     var mirror by remember { mutableStateOf(PlayerMirror()) }
     val progressState = remember { ProgressState() }
+    val uiScope = rememberCoroutineScope()
+    // pelacak pemutaran untuk statistik & sejarah
+    var lastPlayUri by remember { mutableStateOf<String?>(null) }
+    var statsVersion by remember { mutableLongStateOf(0L) }
 
     DisposableEffect(context) {
         var released = false
@@ -285,6 +309,15 @@ fun PlayerApp() {
                     )
                 ) {
                     mirror = readMirror(player)
+                    // catat mulai lagu untuk statistik & sejarah
+                    if (player.isPlaying) {
+                        val id = player.currentMediaItem?.mediaId
+                        if (id != null && id != lastPlayUri) {
+                            lastPlayUri = id
+                            StatsStore.recordPlay(context, id)
+                            statsVersion += 1L
+                        }
+                    }
                     // simpan posisi saat berhenti / lagu berakhir
                     if (!player.isPlaying && player.playbackState != Player.STATE_IDLE &&
                         player.mediaItemCount > 0
@@ -322,6 +355,37 @@ fun PlayerApp() {
     var loading by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var tab by remember { mutableStateOf(LibraryTab.LAGU) }
+
+    // filter pustaka (aturannya di Setelan → Filter pustaka)
+    val libPrefs = context.getSharedPreferences("putar_prefs", Context.MODE_PRIVATE)
+    var hideShort by remember { mutableStateOf(libPrefs.getBoolean("hide_short", false)) }
+    var hideSystemDirs by remember { mutableStateOf(libPrefs.getBoolean("hide_system_dirs", false)) }
+    var hideDups by remember { mutableStateOf(libPrefs.getBoolean("hide_dups", false)) }
+    fun setHide(key: String, set: (Boolean) -> Unit, value: Boolean) {
+        set(value)
+        libPrefs.edit().putBoolean(key, value).apply()
+    }
+
+    // pustaka yang benar-benar ditampilkan setelah filter
+    val library = remember(tracks, hideShort, hideSystemDirs, hideDups) {
+        var list = tracks
+        if (hideShort) list = list.filter { it.durationMs >= 30_000L }
+        if (hideSystemDirs) {
+            val bad = listOf("ringtones", "notifications", "alarms", "alarm", "ringtone", "notification")
+            list = list.filter { t ->
+                val p = t.folder.orEmpty().lowercase()
+                bad.none { p.contains(it) }
+            }
+        }
+        if (hideDups) {
+            val seen = HashSet<String>()
+            list = list.filter { t ->
+                seen.add("${t.title.lowercase()}|${t.displayArtist.lowercase()}")
+            }
+        }
+        list
+    }
+    val libraryAlbums = remember(library) { buildAlbumsFrom(library) }
     var favUris by remember { mutableStateOf(FavStore.load(context)) }
     var playlists by remember { mutableStateOf(PlaylistStore.list(context)) }
     var sortChoice by remember { mutableStateOf(SortOption.JUDUL) }
@@ -387,22 +451,22 @@ fun PlayerApp() {
     }
 
     // --- daftar per tab (root), dihitung sekali per perubahan ---
-    val songsByUri = remember(tracks) { tracks.associateBy { it.contentUri.toString() } }
-    val artistItems = remember(tracks) { buildArtistItems(tracks) }
-    val folderItems = remember(tracks) { buildFolderItems(tracks) }
+    val songsByUri = remember(library) { library.associateBy { it.contentUri.toString() } }
+    val artistItems = remember(library) { buildArtistItems(library) }
+    val folderItems = remember(library) { buildFolderItems(library) }
 
     val q = query.trim()
-    val rootSongs = remember(tracks, q, sortChoice) {
-        val base = if (q.isEmpty()) tracks
-        else tracks.filter {
+    val rootSongs = remember(library, q, sortChoice) {
+        val base = if (q.isEmpty()) library
+        else library.filter {
             it.title.contains(q, ignoreCase = true) ||
                 it.displayArtist.contains(q, ignoreCase = true)
         }
         sortedTracks(base, sortChoice)
     }
-    val rootAlbums = remember(albums, q) {
-        if (q.isEmpty()) albums
-        else albums.filter {
+    val rootAlbums = remember(libraryAlbums, q) {
+        if (q.isEmpty()) libraryAlbums
+        else libraryAlbums.filter {
             it.title.contains(q, ignoreCase = true) ||
                 it.displayArtist.contains(q, ignoreCase = true)
         }
@@ -417,8 +481,8 @@ fun PlayerApp() {
             it.name.contains(q, ignoreCase = true) || it.path.contains(q, ignoreCase = true)
         }
     }
-    val favTracks = remember(tracks, favUris) {
-        tracks.filter { favUris.contains(it.contentUri.toString()) }
+    val favTracks = remember(library, favUris) {
+        library.filter { favUris.contains(it.contentUri.toString()) }
     }
     val favQueryTracks = remember(favTracks, q, sortChoice) {
         val base = if (q.isEmpty()) favTracks
@@ -431,10 +495,21 @@ fun PlayerApp() {
 
     // daftar detail
     val detailSongs = when {
-        selAlbum != null -> tracks.filter { it.albumId != null && it.albumId == selAlbum!!.albumId }
-        selArtist != null -> tracks.filter { it.displayArtist == selArtist }
-        selFolder != null -> tracks.filter { it.folder.orEmpty() == selFolder }
+        selAlbum != null -> library.filter { it.albumId != null && it.albumId == selAlbum!!.albumId }
+        selArtist != null -> library.filter { it.displayArtist == selArtist }
+        selFolder != null -> library.filter { it.folder.orEmpty() == selFolder }
         else -> emptyList()
+    }
+
+    // sejarah & paling sering diputar (untuk beranda)
+    val statsRecent = remember(library, statsVersion) {
+        StatsStore.recent(context).mapNotNull { songsByUri[it] }.take(12)
+    }
+    val statsTop = remember(library, statsVersion) {
+        val plays = StatsStore.playsMap(context)
+        library.filter { (plays[it.contentUri.toString()] ?: 0) > 0 }
+            .sortedByDescending { plays[it.contentUri.toString()] ?: 0 }
+            .take(10)
     }
 
     // --- pemutaran ---
@@ -442,9 +517,26 @@ fun PlayerApp() {
     var restoredApplied by remember { mutableStateOf(false) }
     var lastSavedPos by remember { mutableLongStateOf(-1L) }
 
-    // sleep timer: "setelah lagu ini selesai"
+    // sleep timer: "setelah lagu ini selesai" & "setelah N lagu"
     var sleepEndOfTrack by remember { mutableStateOf(false) }
     var sleepPrevIndex by remember { mutableStateOf(-1) }
+    var sleepSongsLeft by remember { mutableStateOf(0) }
+    var sleepSongsPrevIndex by remember { mutableStateOf(-1) }
+    var nextStack by remember { mutableStateOf(0) }
+
+    // fade-out lembut ~3 dtk lalu pause
+    fun fadePause() {
+        val c = controller ?: return
+        uiScope.launch {
+            val steps = 14
+            for (i in steps downTo 1) {
+                c.volume = i.toFloat() / steps
+                delay(220)
+            }
+            c.pause()
+            c.volume = 1f
+        }
+    }
 
     fun playList(list: List<Track>, index: Int, shuffled: Boolean) {
         if (list.isEmpty()) return
@@ -454,6 +546,7 @@ fun PlayerApp() {
         pendingResumeMs = -1L
         sleepEndOfTrack = false
         sleepPrevIndex = -1
+        nextStack = 0
         c.shuffleModeEnabled = false
         c.setMediaItems(items, start, 0L)
         if (shuffled) c.shuffleModeEnabled = true
@@ -482,7 +575,10 @@ fun PlayerApp() {
             playList(listOf(track), 0, false)
             return
         }
-        runCatching { c.addMediaItem(c.currentMediaItemIndex + 1, track.toMediaItem()) }
+        // menumpuk: tiap "berikutnya" disisipkan tepat setelah tumpukan sebelumnya
+        val idx = c.currentMediaItemIndex + 1 + nextStack
+        runCatching { c.addMediaItem(idx, track.toMediaItem()) }
+        nextStack++
         toast(context, "Berikutnya: ${track.title}")
     }
 
@@ -558,12 +654,24 @@ fun PlayerApp() {
 
     // posisi slider + simpan progres berkala
     LaunchedEffect(mirror.playing) {
+        var lastSample = 0L
+        var accMs = 0L
         while (mirror.playing) {
             delay(400)
             val c = controller
             if (c != null) {
                 val pos = c.currentPosition.coerceAtLeast(0L)
                 progressState.positionMs.longValue = pos
+                val dt = pos - lastSample
+                if (dt in 1..8_000L) accMs += dt
+                lastSample = pos
+                if (accMs >= 20_000L) {
+                    c.currentMediaItem?.mediaId?.let { id ->
+                        StatsStore.addMinutes(context, id, accMs)
+                        statsVersion += 1L
+                    }
+                    accMs = 0L
+                }
                 if (abs(pos - lastSavedPos) > 4000L) {
                     lastSavedPos = pos
                     SessionStore.savePosition(context, c.currentMediaItemIndex, pos)
@@ -583,7 +691,7 @@ fun PlayerApp() {
             if (left <= 0L) {
                 sleepUntil = 0L
                 sleepLeftMs = 0L
-                controller?.pause()
+                fadePause()
                 break
             }
             sleepLeftMs = left
@@ -596,19 +704,65 @@ fun PlayerApp() {
         if (sleepEndOfTrack && sleepPrevIndex >= 0 &&
             mirror.index != sleepPrevIndex && controller?.isPlaying == true
         ) {
-            controller?.pause()
+            fadePause()
             sleepEndOfTrack = false
             sleepPrevIndex = -1
             toast(context, "Sleep timer selesai")
         }
     }
 
-    val sleepAnyActive = sleepUntil > 0L || sleepEndOfTrack
+    // berhenti setelah N lagu berikutnya
+    LaunchedEffect(mirror.index, sleepSongsLeft) {
+        if (sleepSongsLeft > 0 && sleepSongsPrevIndex >= 0 &&
+            mirror.index != sleepSongsPrevIndex && controller?.isPlaying == true
+        ) {
+            sleepSongsPrevIndex = mirror.index
+            val left = sleepSongsLeft - 1
+            if (left <= 0) {
+                sleepSongsLeft = 0
+                sleepSongsPrevIndex = -1
+                fadePause()
+                toast(context, "Sleep timer selesai")
+            } else {
+                sleepSongsLeft = left
+            }
+        }
+    }
+
+    val sleepAnyActive = sleepUntil > 0L || sleepEndOfTrack || sleepSongsLeft > 0
 
     // --- layar tambahan ---
     var showFullPlayer by remember { mutableStateOf(false) }
     var showEq by remember { mutableStateOf(false) }
     var showSettings by remember { mutableStateOf(false) }
+    var showFilters by remember { mutableStateOf(false) }
+    var showStats by remember { mutableStateOf(false) }
+
+    // cadangkan / pulihkan data (SAF)
+    val backupExport = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val ok = runCatching {
+            context.contentResolver.openOutputStream(uri)?.use {
+                it.write(BackupStore.buildJson(context).toByteArray())
+            } != null
+        }.getOrDefault(false)
+        toast(context, if (ok) "Cadangan tersimpan" else "Gagal menyimpan cadangan")
+    }
+    val backupImport = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val ok = runCatching {
+            val text = context.contentResolver.openInputStream(uri)
+                ?.use { it.readBytes().toString(Charsets.UTF_8) }.orEmpty()
+            BackupStore.applyJson(context, text)
+        }.getOrDefault(false)
+        favUris = FavStore.load(context)
+        reloadPlaylists()
+        toast(context, if (ok) "Data dipulihkan" else "File cadangan tidak valid")
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -733,6 +887,20 @@ fun PlayerApp() {
                                             playList(list, idx, false)
                                         }
                                     }
+                                    if (statsRecent.isNotEmpty()) {
+                                        item {
+                                            TrackStrip("Baru diputar", statsRecent) { list, idx ->
+                                                playList(list, idx, false)
+                                            }
+                                        }
+                                    }
+                                    if (statsTop.isNotEmpty()) {
+                                        item {
+                                            TrackStrip("Paling sering diputar", statsTop) { list, idx ->
+                                                playList(list, idx, false)
+                                            }
+                                        }
+                                    }
                                 }
                                 item {
                                     Text(
@@ -750,7 +918,9 @@ fun PlayerApp() {
                                         track = track,
                                         isCurrent = track.contentUri.toString() == currentMediaItemUri(controller),
                                         onClick = { playList(rootSongs, index, false) },
-                                        onLongClick = { contextTrack = track; showContextMenu = true }
+                                        onLongClick = { contextTrack = track; showContextMenu = true },
+                                        onSwipeLeft = { addToQueue(track) },
+                                        onSwipeRight = { toggleFav(track.contentUri.toString()) }
                                     )
                                 }
                             }
@@ -843,6 +1013,7 @@ fun PlayerApp() {
             onOpenEqualizer = { showEq = true },
             sleepActive = sleepAnyActive,
             sleepLabel = when {
+                sleepSongsLeft > 0 -> "Sleep $sleepSongsLeft lagu lagi"
                 sleepUntil > 0L -> "Sleep ${fmtMs(sleepLeftMs)}"
                 sleepEndOfTrack -> "Akhir lagu ini"
                 else -> null
@@ -881,7 +1052,62 @@ fun PlayerApp() {
                 showSettings = false
                 showPlaylistBrowser = true
             },
+            onOpenFilters = {
+                showSettings = false
+                showFilters = true
+            },
+            onBackup = {
+                showSettings = false
+                backupExport.launch("purewave-backup.json")
+            },
+            onRestore = {
+                showSettings = false
+                backupImport.launch(arrayOf("application/json"))
+            },
+            onStats = {
+                showSettings = false
+                showStats = true
+            },
             onDismiss = { showSettings = false }
+        )
+    }
+
+    if (showFilters) {
+        LibraryFilterDialog(
+            hideShort = hideShort,
+            hideSystemDirs = hideSystemDirs,
+            hideDups = hideDups,
+            onToggle = { key, value ->
+                when (key) {
+                    "short" -> setHide("hide_short", { hideShort = it }, value)
+                    "sysdir" -> setHide("hide_system_dirs", { hideSystemDirs = it }, value)
+                    "dup" -> setHide("hide_dups", { hideDups = it }, value)
+                }
+            },
+            onDismiss = { showFilters = false }
+        )
+    }
+
+    if (showStats) {
+        val pMap = StatsStore.playsMap(context)
+        val mMap = StatsStore.minutesMap(context)
+        val topTracks = remember(library, statsVersion) {
+            library.filter { (pMap[it.contentUri.toString()] ?: 0) > 0 }
+                .sortedByDescending { pMap[it.contentUri.toString()] ?: 0 }
+                .take(10)
+        }
+        val rows = remember(statsVersion) {
+            topTracks.mapIndexed { i, t ->
+                val p = pMap[t.contentUri.toString()] ?: 0
+                val m = (mMap[t.contentUri.toString()] ?: 0L) / 60_000L
+                "${i + 1}. ${t.title} — ${t.displayArtist}  ·  ${p}× · ${m} mnt"
+            }
+        }
+        val totalMin = mMap.values.sum() / 60_000L
+        StatsDialog(
+            totalMinutes = totalMin,
+            rows = rows,
+            onDismiss = { showStats = false }
         )
     }
 
@@ -976,19 +1202,37 @@ fun PlayerApp() {
         SleepTimerDialog(
             active = sleepAnyActive,
             endOfTrackActive = sleepEndOfTrack,
+            songsActive = sleepSongsLeft > 0,
             onCancel = {
                 sleepUntil = 0L
                 sleepLeftMs = 0L
                 sleepEndOfTrack = false
                 sleepPrevIndex = -1
+                sleepSongsLeft = 0
+                sleepSongsPrevIndex = -1
                 showSleepDialog = false
             },
             onEndOfTrack = {
                 if (mirror.hasMedia) {
                     sleepUntil = 0L
                     sleepLeftMs = 0L
+                    sleepSongsLeft = 0
+                    sleepSongsPrevIndex = -1
                     sleepPrevIndex = mirror.index
                     sleepEndOfTrack = true
+                    showSleepDialog = false
+                } else {
+                    toast(context, "Belum ada lagu yang dimainkan")
+                }
+            },
+            onPickSongs = { n ->
+                if (mirror.hasMedia) {
+                    sleepUntil = 0L
+                    sleepLeftMs = 0L
+                    sleepEndOfTrack = false
+                    sleepPrevIndex = -1
+                    sleepSongsPrevIndex = mirror.index
+                    sleepSongsLeft = n
                     showSleepDialog = false
                 } else {
                     toast(context, "Belum ada lagu yang dimainkan")
@@ -997,6 +1241,8 @@ fun PlayerApp() {
             onPickMinutes = { minutes ->
                 sleepEndOfTrack = false
                 sleepPrevIndex = -1
+                sleepSongsLeft = 0
+                sleepSongsPrevIndex = -1
                 sleepUntil = SystemClock.elapsedRealtime() + minutes * 60_000L
                 sleepLeftMs = minutes * 60_000L
                 showSleepDialog = false
@@ -1131,8 +1377,10 @@ private fun LibraryHeader(
 private fun SleepTimerDialog(
     active: Boolean,
     endOfTrackActive: Boolean,
+    songsActive: Boolean,
     onCancel: () -> Unit,
     onEndOfTrack: () -> Unit,
+    onPickSongs: (Int) -> Unit,
     onPickMinutes: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1154,6 +1402,19 @@ private fun SleepTimerDialog(
                         color = if (endOfTrackActive) Coral else MaterialTheme.colorScheme.onSurface,
                         fontWeight = if (endOfTrackActive) FontWeight.Bold else FontWeight.Normal
                     )
+                }
+                listOf(2, 3, 5, 10).forEach { n ->
+                    TextButton(
+                        onClick = { onPickSongs(n) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            if (n == 2) "2 lagu berikutnya" else "$n lagu berikutnya",
+                            modifier = Modifier.fillMaxWidth(),
+                            color = if (songsActive) Coral else MaterialTheme.colorScheme.onSurface,
+                            fontWeight = if (songsActive) FontWeight.Bold else FontWeight.Normal
+                        )
+                    }
                 }
                 listOf(10, 15, 30, 45, 60, 90).forEach { minutes ->
                     TextButton(

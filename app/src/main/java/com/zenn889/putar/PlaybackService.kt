@@ -46,6 +46,21 @@ class PlaybackService : MediaSessionService() {
                                 AudioFx.attach(applicationContext, sid)
                             }
                         }
+                        if (events.containsAny(
+                                Player.EVENT_PLAYBACK_STATE_CHANGED,
+                                Player.EVENT_IS_PLAYING_CHANGED,
+                                Player.EVENT_MEDIA_METADATA_CHANGED,
+                                Player.EVENT_MEDIA_ITEM_TRANSITION
+                            )
+                        ) {
+                            val meta = player.mediaMetadata
+                            PlayerWidgetProvider.push(
+                                applicationContext,
+                                meta.title?.toString() ?: "PureWave",
+                                meta.artist?.toString().orEmpty().ifEmpty { "Pemutar offline" },
+                                player.isPlaying
+                            )
+                        }
                     }
                 })
             }
@@ -74,6 +89,21 @@ class PlaybackService : MediaSessionService() {
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =
         mediaSession
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        when (intent?.action) {
+            PlayerWidgetProvider.ACTION_TOGGLE -> mediaSession?.player?.let {
+                if (it.isPlaying) it.pause() else it.play()
+            }
+            PlayerWidgetProvider.ACTION_NEXT -> mediaSession?.player?.let {
+                runCatching { it.seekToNextMediaItem() }
+            }
+            PlayerWidgetProvider.ACTION_PREV -> mediaSession?.player?.let {
+                runCatching { it.seekToPreviousMediaItem() }
+            }
+        }
+        return super.onStartCommand(intent, flags, startId)
+    }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = mediaSession?.player

@@ -2,15 +2,13 @@ package com.zenn889.putar.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,45 +21,36 @@ import com.zenn889.putar.data.MusicRepository
 import com.zenn889.putar.data.Track
 import com.zenn889.putar.ui.theme.MutedInk
 
-/**
- * Deret "Baru ditambahkan" ala beranda — satu kartu per album terbaru,
- * unik per album, maksimal 12.
- */
+/** Strip horizontal kartu lagu ber-artwork album — dipakai beberapa bagian. */
 @Composable
-fun RecentlyAddedRow(songs: List<Track>, onPlay: (List<Track>, Int) -> Unit) {
-    val picks = remember(songs) {
-        val seen = mutableSetOf<Long>()
-        val out = ArrayList<Track>()
-        for (t in songs.sortedByDescending { it.dateAddedMs }) {
-            val a = t.albumId
-            val key = if (a != null && a != 0L) a else (t.mediaId ?: -1L)
-            if (seen.add(key)) out.add(t)
-            if (out.size >= 12) break
-        }
-        out
-    }
-    if (picks.isEmpty()) return
-
+fun TrackStrip(
+    title: String,
+    tracks: List<Track>,
+    onPlay: (List<Track>, Int) -> Unit
+) {
+    if (tracks.isEmpty()) return
     Column {
         Text(
-            "Baru ditambahkan",
+            title,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 8.dp)
         )
-        LazyRow(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp)) {
-            items(picks, key = { it.contentUri.toString() }) { track ->
-                val idx = picks.indexOf(track)
+        LazyRow(
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp)
+        ) {
+            items(tracks, key = { it.contentUri.toString() }) { track ->
+                val idx = tracks.indexOf(track)
                 Column(
                     modifier = Modifier
                         .width(132.dp)
                         .padding(end = 10.dp)
-                        .clickable { onPlay(picks, idx) }
+                        .clickable { onPlay(tracks, idx) }
                 ) {
                     AlbumArt(
                         uri = MusicRepository.albumArtUri(track.albumId),
                         size = 132.dp,
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp)
+                        shape = RoundedCornerShape(14.dp)
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
@@ -83,4 +72,25 @@ fun RecentlyAddedRow(songs: List<Track>, onPlay: (List<Track>, Int) -> Unit) {
         }
         Spacer(Modifier.height(2.dp))
     }
+}
+
+/**
+ * Deret "Baru ditambahkan" ala beranda — satu kartu per album terbaru,
+ * unik per album, maksimal 12.
+ */
+@Composable
+fun RecentlyAddedRow(songs: List<Track>, onPlay: (List<Track>, Int) -> Unit) {
+    val picks = remember(songs) {
+        val seen = mutableSetOf<Long>()
+        val out = ArrayList<Track>()
+        for (t in songs.sortedByDescending { it.dateAddedMs }) {
+            val a = t.albumId
+            val key = if (a != null && a != 0L) a else (t.mediaId ?: -1L)
+            if (seen.add(key)) out.add(t)
+            if (out.size >= 12) break
+        }
+        out
+    }
+    if (picks.isEmpty()) return
+    TrackStrip("Baru ditambahkan", picks, onPlay)
 }
