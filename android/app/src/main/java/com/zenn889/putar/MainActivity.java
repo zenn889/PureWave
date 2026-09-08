@@ -114,6 +114,21 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    /** Port server streaming lokal — dipakai JS utk membangun ulang URL lagu setelah restart. */
+    @JavascriptInterface
+    public int port() {
+        return MusicServer.get(this).getPort();
+    }
+
+    /** Cek cepat apakah izin akses audio sudah diberikan (tanpa memunculkan dialog). */
+    @JavascriptInterface
+    public boolean hasPerm() {
+        String perm = Build.VERSION.SDK_INT >= 33
+                ? Manifest.permission.READ_MEDIA_AUDIO
+                : Manifest.permission.READ_EXTERNAL_STORAGE;
+        return ContextCompat.checkSelfPermission(this, perm) == PackageManager.PERMISSION_GRANTED;
+    }
+
     /** Bisa dijalankan dari thread mana pun; query MediaStore di thread ini (bukan UI). */
     private void runScanAsync() {
         new Thread(() -> {
@@ -129,25 +144,26 @@ public class MainActivity extends BridgeActivity {
                 };
                 String selection = MediaStore.Audio.Media.DURATION + " > 3000"; // buang bunyi < 3 dtk
                 String order = MediaStore.Audio.Media.TITLE + " COLLATE NOCASE ASC";
-                try (Cursor c = getContentResolver().query(collection, projection, selection, null, order)) {
-                    if (c != null) {
-                        int iId = c.getColumnIndexOrThrow(MediaStore.Audio.Media._ID);
-                        int iTitle = c.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE);
-                        int iArtist = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST);
-                        int iDur = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION);
-                        int iMime = c.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE);
-                        while (c.moveToNext()) {
-                            JSONObject o = new JSONObject();
-                            o.put("i", c.getLong(iId));
-                            o.put("t", c.getString(iTitle) != null ? c.getString(iTitle) : "Tanpa judul");
-                            String artist = c.getString(iArtist);
-                            o.put("a", artist == null || artist.isEmpty() || "<unknown>".equals(artist)
-                                    ? "" : artist);
-                            o.put("d", c.getLong(iDur));
-                            String mime = c.getString(iMime);
-                            o.put("m", mime != null && !mime.isEmpty() ? mime : "audio/mpeg");
-                            songs.put(o);
+                boolean wantHiRes = Build.VERSION.SDK_INT >= 29;
+                String[] proj = wantHiRes
+                        ? new String[] {
+                            MediaStore.Audio.Media._ID,
+                            MediaStore.Audio.Media.TITLE,
+                            MediaStore.Audio.Media.ARTIST,
+                            MediaStore.Audio.Media.DURATION,
+                            MediaStore.Audio.Media.MIME_TYPE,
+                            "sample_rate"
                         }
+                        : projection;
+                try {
+                    queryAndEmit(collection, proj, selection, order, songs);
+                } catch (IllegalArgumentException ex) {
+                    // kolom sample_rate ternyata tak tersedia di perangkat ini — query tanpa kolom itu
+                    if (wantHiRes) {
+                        songs = new JSONArray();
+                        queryAndEmit(collection, projection, selection, order, songs);
+                    } else {
+                        throw ex;
                     }
                 }
                 JSONObject out = new JSONObject();
@@ -161,6 +177,35 @@ public class MainActivity extends BridgeActivity {
                 scanning.set(false);
             }
         }, "putar-scan").start();
+    }
+
+    private void queryAndEmit(Uri collection, String[] projection, String selection, String order,
+                              JSONArray songs) throws Exception {
+        try (Cursor c = getContentResolver().query(collection, projection, selection, null, order)) {
+            if (c == null) return;
+            int iId = c.getColumnIndexOrThrow(MediaStore.Audio.Media._ID);
+            int iTitle = c.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE);
+            int iArtist = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST);
+            int iDur = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION);
+            int iMime = c.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE);
+            int iSr = c.getColumnIndex("sample_rate");
+            while (c.moveToNext()) {
+                JSONObject o = new JSONObject();
+                o.put("i", c.getLong(iId));
+                o.put("t", c.getString(iTitle) != null ? c.getString(iTitle) : "Tanpa judul");
+                String artist = c.getString(iArtist);
+                o.put("a", artist == null || artist.isEmpty() || "<unknown>".equals(artist)
+                        ? "" : artist);
+                o.put("d", c.getLong(iDur));
+                String mime = c.getString(iMime);
+                o.put("m", mime != null && !mime.isEmpty() ? mime : "audio/mpeg");
+                if (iSr >= 0) {
+                    long sr = c.getLong(iSr);
+                    if (sr > 48000) o.put("sr", sr); // flag hi-res saja (>48kHz)
+                }
+                songs.put(o);
+            }
+        }
     }
 
     /** Kirim hasil ke JS (harus dari UI thread). */

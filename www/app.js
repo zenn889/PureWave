@@ -34,7 +34,11 @@ function hostOf(url) {
 }
 function subFor(t) {
   if (t.kind === 'file') return 'File lokal · sesi ini';
-  if (t.kind === 'device') return t.artist ? 'Dari HP · ' + t.artist : 'Dari HP · Artis tak dikenal';
+  if (t.kind === 'device') {
+    let s = t.artist ? 'Dari HP · ' + t.artist : 'Dari HP';
+    if (t.sr && t.sr > 48000) s += ' · Hi-Res ' + Math.round(t.sr / 1000) + 'kHz';
+    return s;
+  }
   return hostOf(t.url) + ' · stream';
 }
 function kindLabel(t) {
@@ -681,7 +685,34 @@ for (const d of DEMOS) {
 
 /* ============================================================
    scan musik HP — native Android (window.PutarNative.scan)
+   pustaka perangkat tersimpan (localStorage) & otomatis dimuat
+   ulang tiap app dibuka; sinkron diam-diam bila izin sudah ada
    ============================================================ */
+const DEVLIB_KEY = 'putar.devlib.v1';
+function saveDevLib(songs) {
+  try { localStorage.setItem(DEVLIB_KEY, JSON.stringify({ items: songs, at: Date.now() })); }
+  catch { /* storage penuh — abaikan */ }
+}
+function loadDevLib() {
+  try {
+    const d = JSON.parse(localStorage.getItem(DEVLIB_KEY) || 'null');
+    return d && Array.isArray(d.items) ? d.items : [];
+  } catch { return []; }
+}
+function deviceTrackFrom(s, port) {
+  const devId = Number(s.i);
+  if (!devId || !port) return null;
+  return {
+    id: uid(),
+    devId,
+    kind: 'device',
+    title: s.t || 'Tanpa judul',
+    artist: s.a || '',
+    sr: Number(s.sr) || 0,
+    url: 'http://127.0.0.1:' + port + '/s?id=' + devId + '&m=' + encodeURIComponent(s.m || 'audio/mpeg'),
+    dur: s.d ? s.d / 1000 : undefined
+  };
+}
 function setScanUI(mode, label) {
   dom.scanBar.classList.toggle('busy', mode === 'busy');
   dom.scanBar.classList.toggle('ok', mode === 'ok');
@@ -693,12 +724,16 @@ function setScanUI(mode, label) {
 
 window.__putarMusicScan = (res) => {
   if (!res) return;
-  if (res.error === 'busy') return; // klik ganda — biarkan proses berjalan
+  if (res.error === 'busy') return; // klik ganda / auto-scan — biarkan proses berjalan
   if (!res.ok) {
-    setScanUI('err', 'Gagal');
-    dom.scanSub.textContent = 'Izinkan akses musik di Pengaturan Android untuk memindai';
-    if (res.error === 'permission') toast('Izin akses musik ditolak. Izinkan lewat Pengaturan Android, lalu pindai lagi.');
-    else toast('Pemindaian gagal — coba lagi.');
+    if (res.error === 'permission') {
+      setScanUI('err', 'Izin ditolak');
+      dom.scanSub.textContent = 'Izinkan akses musik di Pengaturan Android, lalu pindai lagi';
+      toast('Izin akses musik ditolak. Buka Pengaturan > Aplikasi > putar > Izin, lalu coba lagi.');
+    } else {
+      setScanUI('err', 'Gagal');
+      toast('Pemindaian gagal — coba lagi.');
+    }
     return;
   }
   const songs = Array.isArray(res.songs) ? res.songs : [];
@@ -707,28 +742,20 @@ window.__putarMusicScan = (res) => {
   for (const t of state.tracks) if (t.kind === 'device') seen.add(t.devId);
   const batch = [];
   for (const s of songs) {
-    const devId = Number(s.i);
-    if (!devId || seen.has(devId)) continue;
-    seen.add(devId);
-    batch.push({
-      id: uid(),
-      devId,
-      kind: 'device',
-      title: s.t || 'Tanpa judul',
-      artist: s.a || '',
-      url: 'http://127.0.0.1:' + port + '/s?id=' + devId + '&m=' + encodeURIComponent(s.m || 'audio/mpeg'),
-      dur: s.d ? s.d / 1000 : undefined
-    });
+    if (seen.has(Number(s.i))) continue;
+    const tr = deviceTrackFrom(s, port);
+    if (!tr) continue;
+    seen.add(tr.devId);
+    batch.push(tr);
   }
   if (batch.length) {
     state.tracks.push(...batch);
     if (state.index === -1) setCurrent(0);
     renderQueue();
   }
-  setScanUI('ok', String(batch.length));
-  dom.scanSub.textContent = songs.length === batch.length
-    ? 'Semua musik sudah dimuat — pindai ulang untuk memperbarui'
-    : 'Pindai ulang untuk memperbarui daftar';
+  saveDevLib(songs);
+  setScanUI('ok', String(songs.length));
+  dom.scanSub.textContent = 'Tersimpan — daftar musik HP otomatis dimuat tiap app dibuka';
   if (batch.length) toast(batch.length + ' musik dari HP ditambahkan ke playlist.');
   else if (songs.length) toast('Semua musik di HP sudah ada di playlist.');
   else toast('Tidak ada audio ditemukan di HP ini.');
@@ -743,6 +770,37 @@ if (window.PutarNative && typeof window.PutarNative.scan === 'function') {
     try { window.PutarNative.scan(); }
     catch { setScanUI('err', 'Gagal'); toast('Pemindaian gagal — coba lagi.'); }
   });
+
+  // boot: muat pustaka tersimpan, lalu sinkron diam-diam bila izin sudah diberikan
+  (function autoLibrary() {
+    let port = 0;
+    try { port = Number(window.PutarNative.port()); } catch { return; }
+    if (!port) return;
+    const items = loadDevLib();
+    const seen = new Set();
+    for (const t of state.tracks) if (t.kind === 'device') seen.add(t.devId);
+    const batch = [];
+    for (const s of items) {
+      if (!s || seen.has(Number(s.i))) continue;
+      const tr = deviceTrackFrom(s, port);
+      if (!tr) continue;
+      seen.add(tr.devId);
+      batch.push(tr);
+    }
+    if (batch.length) {
+      state.tracks.push(...batch);
+      if (state.index === -1 && !state.tracks.some(t => t.kind !== 'device')) setCurrent(0);
+    }
+    if (items.length) setScanUI('ok', String(items.length));
+    let granted = false;
+    try { granted = !!window.PutarNative.hasPerm(); } catch { granted = false; }
+    if (granted) {
+      dom.scanSub.textContent = 'Menyinkronkan pustaka musik…';
+      setTimeout(() => { try { window.PutarNative.scan(); } catch {} }, 700);
+    } else {
+      dom.scanSub.textContent = 'Izinkan akses musik untuk memuat lagu dari HP';
+    }
+  })();
 }
 applyVolumeUI();
 restore();
