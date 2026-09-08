@@ -85,6 +85,7 @@ import com.zenn889.putar.ui.ArtistRow
 import com.zenn889.putar.ui.BackBar
 import com.zenn889.putar.ui.EqualizerSheet
 import com.zenn889.putar.ui.FolderRow
+import com.zenn889.putar.ui.HeroCard
 import com.zenn889.putar.ui.LibraryList
 import com.zenn889.putar.ui.LibraryTab
 import com.zenn889.putar.ui.LibraryTabBar
@@ -697,15 +698,20 @@ fun PlayerApp() {
                             onSortChange = { sortChoice = it }
                         )
                         when (tab) {
-                            LibraryTab.LAGU -> if (rootSongs.isEmpty()) {
-                                SimpleEmpty("Tidak ada lagu cocok")
-                            } else LibraryList(
-                                tracks = rootSongs,
-                                currentMediaId = currentMediaItemUri(controller),
-                                onPlay = { playList(rootSongs, it, false) },
-                                onLongClickTrack = { contextTrack = it; showContextMenu = true },
-                                modifier = Modifier.weight(1f)
-                            )
+                            LibraryTab.LAGU -> Column(Modifier.weight(1f)) {
+                                if (rootSongs.isNotEmpty()) {
+                                    HeroCard(rootSongs) { playList(rootSongs, 0, true) }
+                                    LibraryList(
+                                        tracks = rootSongs,
+                                        currentMediaId = currentMediaItemUri(controller),
+                                        onPlay = { playList(rootSongs, it, false) },
+                                        onLongClickTrack = { contextTrack = it; showContextMenu = true },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                } else {
+                                    SimpleEmpty("Tidak ada lagu cocok")
+                                }
+                            }
                             LibraryTab.ALBUM -> if (rootAlbums.isEmpty()) {
                                 SimpleEmpty("Tidak ada album cocok")
                             } else LazyColumn(
@@ -742,19 +748,24 @@ fun PlayerApp() {
                                     FolderRow(item) { selFolder = item.key }
                                 }
                             }
-                            LibraryTab.FAVORIT -> if (favQueryTracks.isEmpty()) {
-                                SimpleEmpty(
-                                    if (favTracks.isEmpty())
-                                        "Belum ada favorit — tekan lama sebuah lagu lalu pilih Favorit."
-                                    else "Tidak ada favorit cocok"
-                                )
-                            } else LibraryList(
-                                tracks = favQueryTracks,
-                                currentMediaId = currentMediaItemUri(controller),
-                                onPlay = { playList(favQueryTracks, it, false) },
-                                onLongClickTrack = { contextTrack = it; showContextMenu = true },
-                                modifier = Modifier.weight(1f)
-                            )
+                            LibraryTab.FAVORIT -> Column(Modifier.weight(1f)) {
+                                if (favQueryTracks.isEmpty()) {
+                                    SimpleEmpty(
+                                        if (favTracks.isEmpty())
+                                            "Belum ada favorit — tekan lama sebuah lagu lalu pilih Favorit."
+                                        else "Tidak ada favorit cocok"
+                                    )
+                                } else {
+                                    HeroCard(favQueryTracks) { playList(favQueryTracks, 0, true) }
+                                    LibraryList(
+                                        tracks = favQueryTracks,
+                                        currentMediaId = currentMediaItemUri(controller),
+                                        onPlay = { playList(favQueryTracks, it, false) },
+                                        onLongClickTrack = { contextTrack = it; showContextMenu = true },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

@@ -4,8 +4,9 @@ Music player Android **native** (Kotlin + Jetpack Compose + Media3/ExoPlayer).
 Memutar semua musik dari penyimpanan internal HP. **Tanpa internet, tanpa
 akun, tanpa iklan.**
 
-> **v2.7.0 — rilis final roadmap**: splash screen, onboarding sekali
-> jalan, dan APK release (R8, ~2,4 MB) bertanda tangan keystore sendiri.
+> **v2.7.2**: kartu pustaka gradien (HeroCard) + penanda lagu aktif
+> (mini-EQ animasi) + info aplikasi lengkap. Splash, onboarding, dan APK
+> release signed (R8) hadir sejak v2.7.0.
 
 ## Fitur
 
@@ -46,7 +47,7 @@ akun, tanpa iklan.**
 ## Unduh
 
 https://github.com/zenn889/music-player/releases — ambil
-`purewave-v2.7.1.apk` terbaru. Karena tanda tangan sama dengan v2.7.0,
+`purewave-v2.7.2.apk` terbaru. Karena tanda tangan sama dengan v2.7.0,
 install langsung menggantikan (update) versi tersebut.
 
 ## Bangun sendiri

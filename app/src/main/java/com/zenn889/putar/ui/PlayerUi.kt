@@ -1,6 +1,11 @@
 package com.zenn889.putar.ui
 
 import android.net.Uri
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -135,6 +140,30 @@ fun AlbumArt(uri: Uri?, size: Dp, shape: Shape = RoundedCornerShape(14.dp), modi
     }
 }
 
+/** Tiga batang EQ kecil yang beranimasi — penanda lagu sedang diputar. */
+@Composable
+private fun MiniEq() {
+    val t = rememberInfiniteTransition(label = "eq-mini")
+    val h1 = t.animateFloat(0.45f, 1f, infiniteRepeatable(tween(420), RepeatMode.Reverse), label = "a")
+    val h2 = t.animateFloat(0.45f, 1f, infiniteRepeatable(tween(560), RepeatMode.Reverse), label = "b")
+    val h3 = t.animateFloat(0.45f, 1f, infiniteRepeatable(tween(340), RepeatMode.Reverse), label = "c")
+    Row(
+        modifier = Modifier.padding(end = 8.dp),
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        listOf(h1.value, h2.value, h3.value).forEach { v ->
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(6.dp + 8.dp * v)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Coral)
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TrackRow(
@@ -147,6 +176,7 @@ fun TrackRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
+            .background(if (isCurrent) Coral.copy(alpha = 0.08f) else Color.Transparent)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -170,7 +200,12 @@ fun TrackRow(
                 color = MutedInk
             )
         }
-        Spacer(Modifier.width(8.dp))
+        if (isCurrent) {
+            MiniEq()
+            Spacer(Modifier.width(4.dp))
+        } else {
+            Spacer(Modifier.width(8.dp))
+        }
         Text(
             text = fmtMs(track.durationMs),
             style = MaterialTheme.typography.labelMedium,
