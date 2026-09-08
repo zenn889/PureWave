@@ -57,9 +57,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -89,12 +89,32 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        installCrashLogger(this)
         enableEdgeToEdge()
         setContent {
             PutarTheme {
                 PlayerApp()
             }
         }
+    }
+}
+
+/** Catat crash ke <app>/files/crash.txt supaya gampang dilaporkan. */
+private fun installCrashLogger(context: Context) {
+    val previous = Thread.getDefaultUncaughtExceptionHandler()
+    Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+        runCatching {
+            val dir = context.getExternalFilesDir(null) ?: context.filesDir
+            val file = java.io.File(dir, "crash.txt")
+            val stamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
+                .format(java.util.Date())
+            file.appendText(
+                "\n=== $stamp ===\n" +
+                    (thread?.name ?: "?") + "\n" +
+                    throwable.stackTraceToString() + "\n"
+            )
+        }
+        previous?.uncaughtException(thread, throwable)
     }
 }
 
@@ -383,19 +403,23 @@ private fun LibraryHeader(
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // logo + identitas
+            // logo + identitas (digambar dengan Compose — aman, bukan resource launcher)
             Box(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color(0xFFFF744A), Color(0xFFB22C12))
+                        )
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painterResource(R.mipmap.ic_launcher),
+                    Icons.Filled.MusicNote,
                     contentDescription = "putar",
-                    tint = Color.Unspecified,
-                    modifier = Modifier.size(42.dp).clip(CircleShape)
+                    tint = Color(0xFFFFF8F2),
+                    modifier = Modifier.size(22.dp)
                 )
             }
             Spacer(Modifier.width(10.dp))
