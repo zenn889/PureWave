@@ -983,7 +983,7 @@ private fun LibraryHeader(
             ) {
                 Icon(
                     Icons.Filled.MusicNote,
-                    contentDescription = "putar",
+                    contentDescription = "PureWave",
                     tint = Color(0xFFFFF8F2),
                     modifier = Modifier.size(22.dp)
                 )
@@ -991,7 +991,7 @@ private fun LibraryHeader(
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    "putar",
+                    "PureWave",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground

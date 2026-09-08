@@ -8,11 +8,11 @@ import androidx.compose.ui.graphics.Color
 val Coral = Color(0xFFFF5A36)
 val CoralBright = Color(0xFFFF6F4F)
 val Ink = Color(0xFFF5F4F0)
-val MutedInk = Color(0xFFA4A29A)
-val FaintInk = Color(0xFF71706A)
-val Bg = Color(0xFF0E0F11)
-val Surface = Color(0xFF15161A)
-val SurfaceHigh = Color(0xFF1C1E23)
+val MutedInk = Color(0xFFAAA9A3)
+val FaintInk = Color(0xFF7C7D83)
+val Bg = Color(0xFF101218)
+val Surface = Color(0xFF171A21)
+val SurfaceHigh = Color(0xFF20242D)
 
 private val PutarColors = darkColorScheme(
     primary = Coral,

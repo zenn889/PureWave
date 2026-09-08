@@ -56,6 +56,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
@@ -203,7 +204,7 @@ fun MiniPlayer(
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = mirror.title.ifBlank { "putar" },
+                    text = mirror.title.ifBlank { "PureWave" },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.bodyLarge,
@@ -338,12 +339,28 @@ fun NowPlayingSheet(
                 }
             }
             Spacer(Modifier.height(6.dp))
-            AlbumArt(
-                uri = mirror.artwork,
-                size = 224.dp,
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.aspectRatio(1f)
-            )
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                // pendar lembut di belakang artwork
+                Box(
+                    modifier = Modifier
+                        .size(280.dp)
+                        .background(
+                            Brush.radialGradient(
+                                listOf(Coral.copy(alpha = 0.16f), Color.Transparent)
+                            ),
+                            CircleShape
+                        )
+                )
+                AlbumArt(
+                    uri = mirror.artwork,
+                    size = 224.dp,
+                    shape = RoundedCornerShape(22.dp),
+                    modifier = Modifier.aspectRatio(1f)
+                )
+            }
             Spacer(Modifier.height(20.dp))
             Text(
                 text = mirror.title.ifBlank { "Belum ada lagu" },

@@ -1,4 +1,4 @@
-# putar — Music Player Offline (Android)
+# PureWave — Music Player Offline (Android)
 
 Music player Android **native** (Kotlin + Jetpack Compose + Media3/ExoPlayer).
 Memutar semua musik dari penyimpanan internal HP. **Tanpa internet, tanpa
@@ -39,13 +39,15 @@ akun, tanpa iklan.**
 - **Kontrol di notifikasi & lock screen** + lanjut main di latar belakang
   (MediaSessionService; audio focus; pause otomatis saat headset dicabut).
 - 100% offline — APK bahkan tidak meminta izin INTERNET.
-- Identitas: logo not musik gradient coral (adaptive icon), nama "putar".
+- Identitas: logo not musik gradient coral (adaptive icon), nama "PureWave"
+  (label aplikasi; package teknis tetap `com.zenn889.putar` agar update
+  langsung tanpa kehilangan data).
 
 ## Unduh
 
-https://github.com/zenn889/music-player/releases — ambil `putar-v2.x.apk`
-terbaru. Package id `com.zenn889.putar` sama dengan versi lama, jadi
-install v2.0.0 akan menggantikan (update) versi sebelumnya.
+https://github.com/zenn889/music-player/releases — ambil
+`purewave-v2.7.1.apk` terbaru. Karena tanda tangan sama dengan v2.7.0,
+install langsung menggantikan (update) versi tersebut.
 
 ## Bangun sendiri
 
@@ -64,7 +66,7 @@ Prasyarat: JDK 17+, Android SDK (compileSdk 36).
       data/Track.kt            model lagu
       ui/PlayerUi.kt           daftar lagu, mini player, layar penuh
       ui/EqualizerSheet.kt     panel equalizer & bass
-      ui/theme/Theme.kt        tema gelap khas putar
+      ui/theme/Theme.kt        tema gelap khas PureWave
 
 ## Catatan
 

@@ -95,7 +95,7 @@ fun WelcomeScreen(onDone: () -> Unit) {
 
             Spacer(Modifier.height(18.dp))
             Text(
-                "putar",
+                "PureWave",
                 fontSize = 44.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = Ink
@@ -154,7 +154,7 @@ fun WelcomeScreen(onDone: () -> Unit) {
             }
             Spacer(Modifier.height(12.dp))
             Text(
-                "putar v2.7.0 — tanpa internet, musik tetap jalan",
+                "PureWave — tanpa internet, musik tetap jalan",
                 color = FaintInk,
                 style = MaterialTheme.typography.labelSmall
             )
