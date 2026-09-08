@@ -39,6 +39,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Slider
@@ -84,7 +85,8 @@ data class PlayerMirror(
     val shuffle: Boolean = false,
     val repeat: Int = androidx.media3.common.Player.REPEAT_MODE_OFF,
     val hasMedia: Boolean = false,
-    val index: Int = -1
+    val index: Int = -1,
+    val speed: Float = 1f
 )
 
 fun fmtMs(ms: Long): String {
@@ -184,11 +186,12 @@ fun MiniPlayer(
     onNext: () -> Unit
 ) {
     if (!mirror.hasMedia) return
-    Surface(
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 12.dp,
-        shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
-    ) {
+    Column {
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 12.dp,
+            shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
+        ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -229,6 +232,17 @@ fun MiniPlayer(
                 )
             }
         }
+        }
+        LinearProgressIndicator(
+            progress = {
+                if (mirror.durationMs > 0L) {
+                    (mirror.positionMs.toFloat() / mirror.durationMs).coerceIn(0f, 1f)
+                } else 0f
+            },
+            modifier = Modifier.fillMaxWidth().height(2.dp),
+            color = Coral,
+            trackColor = Color.Transparent
+        )
     }
 }
 
@@ -249,7 +263,9 @@ fun NowPlayingSheet(
     onSleep: () -> Unit,
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
-    onOpenQueue: () -> Unit
+    onOpenQueue: () -> Unit,
+    speedLabel: String,
+    onCycleSpeed: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -266,9 +282,23 @@ fun NowPlayingSheet(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // kecepatan putar
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = Coral.copy(alpha = 0.14f),
+                    modifier = Modifier.clickable(onClick = onCycleSpeed)
+                ) {
+                    Text(
+                        speedLabel,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Coral,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+                Spacer(Modifier.weight(1f))
                 IconButton(onClick = onToggleFavorite) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Filled.Favorite

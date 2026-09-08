@@ -197,8 +197,24 @@ private fun readMirror(player: Player): PlayerMirror {
         shuffle = player.shuffleModeEnabled,
         repeat = player.repeatMode,
         hasMedia = has,
-        index = player.currentMediaItemIndex
+        index = player.currentMediaItemIndex,
+        speed = player.playbackParameters.speed
     )
+}
+
+private val SPEED_STEPS = floatArrayOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
+
+private fun fmtSpeed(speed: Float): String {
+    val s = SPEED_STEPS.minByOrNull { abs(it - speed) } ?: speed
+    val txt = if (s == s.toInt().toFloat()) s.toInt().toString()
+    else s.toString().trimEnd('0').trimEnd('.')
+    return "${txt}x"
+}
+
+private fun nextSpeed(current: Float): Float {
+    val idx = SPEED_STEPS.indexOfFirst { abs(it - current) < 0.01f }
+    val base = if (idx >= 0) idx else 2 // default 1x
+    return SPEED_STEPS[(base + 1) % SPEED_STEPS.size]
 }
 
 @Composable
@@ -224,7 +240,8 @@ fun PlayerApp() {
                         Player.EVENT_REPEAT_MODE_CHANGED,
                         Player.EVENT_SHUFFLE_MODE_ENABLED_CHANGED,
                         Player.EVENT_TIMELINE_CHANGED,
-                        Player.EVENT_POSITION_DISCONTINUITY
+                        Player.EVENT_POSITION_DISCONTINUITY,
+                        Player.EVENT_PLAYBACK_PARAMETERS_CHANGED
                     )
                 ) {
                     mirror = readMirror(player)
@@ -385,12 +402,18 @@ fun PlayerApp() {
     var restoredApplied by remember { mutableStateOf(false) }
     var lastSavedPos by remember { mutableLongStateOf(-1L) }
 
+    // sleep timer: "setelah lagu ini selesai"
+    var sleepEndOfTrack by remember { mutableStateOf(false) }
+    var sleepPrevIndex by remember { mutableStateOf(-1) }
+
     fun playList(list: List<Track>, index: Int, shuffled: Boolean) {
         if (list.isEmpty()) return
         val c = controller ?: return
         val items = list.map { it.toMediaItem() }
         val start = if (shuffled) Random.nextInt(items.size) else index.coerceIn(0, items.size - 1)
         pendingResumeMs = -1L
+        sleepEndOfTrack = false
+        sleepPrevIndex = -1
         c.shuffleModeEnabled = false
         c.setMediaItems(items, start, 0L)
         if (shuffled) c.shuffleModeEnabled = true
@@ -509,7 +532,7 @@ fun PlayerApp() {
         }
     }
 
-    // --- sleep timer ---
+    // sleep timer
     var sleepUntil by remember { mutableLongStateOf(0L) }
     var sleepLeftMs by remember { mutableLongStateOf(0L) }
     var showSleepDialog by remember { mutableStateOf(false) }
@@ -527,6 +550,20 @@ fun PlayerApp() {
             delay(1000)
         }
     }
+
+    // berhenti di akhir lagu saat ini (terpicu saat lagu berganti)
+    LaunchedEffect(mirror.index, sleepEndOfTrack) {
+        if (sleepEndOfTrack && sleepPrevIndex >= 0 &&
+            mirror.index != sleepPrevIndex && controller?.isPlaying == true
+        ) {
+            controller?.pause()
+            sleepEndOfTrack = false
+            sleepPrevIndex = -1
+            toast(context, "Sleep timer selesai")
+        }
+    }
+
+    val sleepAnyActive = sleepUntil > 0L || sleepEndOfTrack
 
     // --- layar tambahan ---
     var showFullPlayer by remember { mutableStateOf(false) }
@@ -729,8 +766,12 @@ fun PlayerApp() {
                 }
             },
             onOpenEqualizer = { showEq = true },
-            sleepActive = sleepUntil > 0L,
-            sleepLabel = if (sleepUntil > 0L) "Sleep ${fmtMs(sleepLeftMs)}" else null,
+            sleepActive = sleepAnyActive,
+            sleepLabel = when {
+                sleepUntil > 0L -> "Sleep ${fmtMs(sleepLeftMs)}"
+                sleepEndOfTrack -> "Akhir lagu ini"
+                else -> null
+            },
             onSleep = { showSleepDialog = true },
             isFavorite = (currentMediaItemUri(controller) ?: "") in favUris,
             onToggleFavorite = {
@@ -739,6 +780,10 @@ fun PlayerApp() {
             onOpenQueue = {
                 refreshQueueEntries()
                 showQueue = true
+            },
+            speedLabel = fmtSpeed(mirror.speed),
+            onCycleSpeed = {
+                controller?.setPlaybackSpeed(nextSpeed(mirror.speed))
             }
             )
     }
@@ -854,13 +899,29 @@ fun PlayerApp() {
 
     if (showSleepDialog) {
         SleepTimerDialog(
-            active = sleepUntil > 0L,
+            active = sleepAnyActive,
+            endOfTrackActive = sleepEndOfTrack,
             onCancel = {
                 sleepUntil = 0L
                 sleepLeftMs = 0L
+                sleepEndOfTrack = false
+                sleepPrevIndex = -1
                 showSleepDialog = false
             },
+            onEndOfTrack = {
+                if (mirror.hasMedia) {
+                    sleepUntil = 0L
+                    sleepLeftMs = 0L
+                    sleepPrevIndex = mirror.index
+                    sleepEndOfTrack = true
+                    showSleepDialog = false
+                } else {
+                    toast(context, "Belum ada lagu yang dimainkan")
+                }
+            },
             onPickMinutes = { minutes ->
+                sleepEndOfTrack = false
+                sleepPrevIndex = -1
                 sleepUntil = SystemClock.elapsedRealtime() + minutes * 60_000L
                 sleepLeftMs = minutes * 60_000L
                 showSleepDialog = false
@@ -994,7 +1055,9 @@ private fun LibraryHeader(
 @Composable
 private fun SleepTimerDialog(
     active: Boolean,
+    endOfTrackActive: Boolean,
     onCancel: () -> Unit,
+    onEndOfTrack: () -> Unit,
     onPickMinutes: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1008,6 +1071,14 @@ private fun SleepTimerDialog(
                     TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
                         Text("Matikan sleep timer", color = Coral, fontWeight = FontWeight.SemiBold)
                     }
+                }
+                TextButton(onClick = onEndOfTrack, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        "Setelah lagu ini selesai",
+                        modifier = Modifier.fillMaxWidth(),
+                        color = if (endOfTrackActive) Coral else MaterialTheme.colorScheme.onSurface,
+                        fontWeight = if (endOfTrackActive) FontWeight.Bold else FontWeight.Normal
+                    )
                 }
                 listOf(10, 15, 30, 45, 60, 90).forEach { minutes ->
                     TextButton(

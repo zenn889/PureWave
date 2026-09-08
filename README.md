@@ -13,6 +13,10 @@ akun, tanpa iklan.**
   dibuka lagi tinggal tekan play untuk melanjutkan.
 - **Antrian terlihat**: ikon antrian di layar pemutar penuh — lihat daftar
   putar berikutnya, lompat ke lagu, urut-ulang (atas/bawah), hapus item.
+- **Kecepatan putar** 0,5×–2× (pil di layar pemutar penuh, ketuk untuk
+  siklus 0.5/0.75/1/1.25/1.5/2×).
+- **Sleep timer** kini juga punya mode "Setelah lagu ini selesai".
+- **Mini player** menampilkan progress tipis di bawah bar.
 - **Sortir lengkap** di tab Lagu & Favorit: Judul A-Z, Artis, Album,
   Terbaru, Durasi.
 - **Menu konteks** (tekan lama pada lagu): putar sekarang / berikutnya,
