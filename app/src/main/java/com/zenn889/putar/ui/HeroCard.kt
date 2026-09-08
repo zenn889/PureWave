@@ -57,7 +57,7 @@ fun HeroCard(songs: List<Track>, onShuffleAll: () -> Unit) {
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .background(
-                Brush.linearGradient(listOf(Color(0xFF2E0F07), Color(0xFF6E1D09))),
+                Brush.linearGradient(listOf(Color(0xFF221C20), Color(0xFF2B1F18))),
                 RoundedCornerShape(22.dp)
             )
             .clickable(onClick = onShuffleAll)
@@ -68,7 +68,7 @@ fun HeroCard(songs: List<Track>, onShuffleAll: () -> Unit) {
                 .align(Alignment.TopEnd)
                 .background(
                     Brush.radialGradient(
-                        listOf(Coral.copy(alpha = 0.35f), Color.Transparent)
+                        listOf(Coral.copy(alpha = 0.18f), Color.Transparent)
                     ),
                     CircleShape
                 )

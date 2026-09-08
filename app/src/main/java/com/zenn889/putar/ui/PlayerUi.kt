@@ -80,6 +80,12 @@ import com.zenn889.putar.ui.theme.FaintInk
 import com.zenn889.putar.ui.theme.MutedInk
 import com.zenn889.putar.ui.theme.SurfaceHigh
 
+/** Wadah progres yang berdetak — hanya konsumennya (mini & layar penuh)
+ *  yang ikut recompose, bukan seluruh pohon UI. */
+class ProgressState {
+    val positionMs = mutableLongStateOf(0L)
+}
+
 /** Cermin kondisi pemutar untuk UI. */
 data class PlayerMirror(
     val title: String = "",
@@ -217,11 +223,13 @@ fun TrackRow(
 @Composable
 fun MiniPlayer(
     mirror: PlayerMirror,
+    progress: ProgressState,
     onClick: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit
 ) {
     if (!mirror.hasMedia) return
+    val posMs = progress.positionMs.longValue
     Column {
         Surface(
             color = MaterialTheme.colorScheme.surface,
@@ -272,7 +280,7 @@ fun MiniPlayer(
         LinearProgressIndicator(
             progress = {
                 if (mirror.durationMs > 0L) {
-                    (mirror.positionMs.toFloat() / mirror.durationMs).coerceIn(0f, 1f)
+                    (posMs.toFloat() / mirror.durationMs).coerceIn(0f, 1f)
                 } else 0f
             },
             modifier = Modifier.fillMaxWidth().height(2.dp),
@@ -286,6 +294,7 @@ fun MiniPlayer(
 @Composable
 fun NowPlayingSheet(
     mirror: PlayerMirror,
+    progress: ProgressState,
     controller: androidx.media3.session.MediaController?,
     onDismiss: () -> Unit,
     onToggleShuffle: () -> Unit,
@@ -416,7 +425,8 @@ fun NowPlayingSheet(
 
             var dragMs by remember { mutableLongStateOf(-1L) }
             val durMs = mirror.durationMs.coerceAtLeast(1L)
-            val shownMs = if (dragMs >= 0L) dragMs else mirror.positionMs
+            val livePos = progress.positionMs.longValue
+            val shownMs = if (dragMs >= 0L) dragMs else livePos
 
             Slider(
                 value = (shownMs / 1000f).coerceIn(0f, durMs / 1000f),
@@ -505,7 +515,7 @@ fun LibraryList(
             start = 8.dp, end = 8.dp, top = 4.dp, bottom = 16.dp
         )
     ) {
-        itemsIndexed(tracks) { index, track ->
+        itemsIndexed(tracks, key = { _, t -> t.contentUri.toString() }) { index, track ->
             TrackRow(
                 track = track,
                 isCurrent = track.contentUri.toString() == currentMediaId,

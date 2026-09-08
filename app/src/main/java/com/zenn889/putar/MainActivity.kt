@@ -93,6 +93,7 @@ import com.zenn889.putar.ui.MiniPlayer
 import com.zenn889.putar.ui.NowPlayingSheet
 import com.zenn889.putar.ui.PlaylistBrowserSheet
 import com.zenn889.putar.ui.PlayerMirror
+import com.zenn889.putar.ui.ProgressState
 import com.zenn889.putar.ui.QueueEntry
 import com.zenn889.putar.ui.QueueSheet
 import com.zenn889.putar.ui.SettingsSheet
@@ -159,6 +160,16 @@ private fun Context.hasReadPermission(): Boolean =
 fun Context.versionName(): String =
     runCatching { packageManager.getPackageInfo(packageName, 0).versionName }
         .getOrNull() ?: ""
+
+private fun greetingLine(): String {
+    val h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+    return when (h) {
+        in 4..10 -> "Selamat pagi"
+        in 11..14 -> "Selamat siang"
+        in 15..17 -> "Selamat sore"
+        else -> "Selamat malam"
+    }
+}
 
 private fun Track.toMediaItem(): MediaItem =
     MediaItem.Builder()
@@ -246,6 +257,7 @@ fun PlayerApp() {
     // --- kontrol pemutar (Media3) ---
     var controller by remember { mutableStateOf<MediaController?>(null) }
     var mirror by remember { mutableStateOf(PlayerMirror()) }
+    val progressState = remember { ProgressState() }
 
     DisposableEffect(context) {
         var released = false
@@ -543,8 +555,8 @@ fun PlayerApp() {
             delay(400)
             val c = controller
             if (c != null) {
-                mirror = mirror.copy(positionMs = c.currentPosition.coerceAtLeast(0L))
                 val pos = c.currentPosition.coerceAtLeast(0L)
+                progressState.positionMs.longValue = pos
                 if (abs(pos - lastSavedPos) > 4000L) {
                     lastSavedPos = pos
                     SessionStore.savePosition(context, c.currentMediaItemIndex, pos)
@@ -596,6 +608,7 @@ fun PlayerApp() {
         bottomBar = {
             MiniPlayer(
                 mirror = mirror,
+                progress = progressState,
                 onClick = { if (mirror.hasMedia) showFullPlayer = true },
                 onPlayPause = {
                     val c = controller ?: return@MiniPlayer
@@ -776,6 +789,7 @@ fun PlayerApp() {
     if (showFullPlayer && mirror.hasMedia) {
         NowPlayingSheet(
             mirror = mirror,
+            progress = progressState,
             controller = controller,
             onDismiss = { showFullPlayer = false },
             onToggleShuffle = { controller?.shuffleModeEnabled = !(mirror.shuffle) },
@@ -1008,7 +1022,7 @@ private fun LibraryHeader(
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    "Pemutar offline · v${context.versionName()}",
+                    "${greetingLine()} · pemutar offline",
                     style = MaterialTheme.typography.bodySmall,
                     color = MutedInk
                 )
