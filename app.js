@@ -32,6 +32,16 @@ function hostOf(url) {
   try { return new URL(url).hostname.replace(/^www\./, ''); }
   catch { return 'stream'; }
 }
+function subFor(t) {
+  if (t.kind === 'file') return 'File lokal · sesi ini';
+  if (t.kind === 'device') return t.artist ? 'Dari HP · ' + t.artist : 'Dari HP · Artis tak dikenal';
+  return hostOf(t.url) + ' · stream';
+}
+function kindLabel(t) {
+  if (t.kind === 'file') return 'File lokal';
+  if (t.kind === 'device') return 'Musik dari HP';
+  return 'Stream · ' + hostOf(t.url);
+}
 const AUDIO_EXT = /\.(mp3|ogg|oga|wav|m4a|aac|flac|opus|webm|weba)$/i;
 
 const STORE_KEY = 'putar.playlist.v1';
@@ -76,6 +86,7 @@ const dom = {
   modal: $('#modal'), urlInput: $('#urlInput'), urlForm: $('#urlForm'),
   btnCancel: $('#btnCancel'), modalClose: $('#modalClose'),
   emptyDemos: $('#emptyDemos'), modalDemos: $('#modalDemos'),
+  scanBar: $('#scanBar'), scanTitle: $('#scanTitle'), scanSub: $('#scanSub'), scanState: $('#scanState'),
   dropOverlay: $('#dropOverlay'), toast: $('#toast')
 };
 
@@ -116,7 +127,7 @@ function setCurrent(i, { load = false, play = false } = {}) {
   }
   const hue = hashHue(t.title);
   applyStageHue(hue);
-  dom.kicker.textContent = t.kind === 'file' ? 'File lokal' : 'Stream · ' + hostOf(t.url);
+  dom.kicker.textContent = kindLabel(t);
   dom.trackTitle.textContent = t.title;
   dom.trackTitle.title = t.title;
   dom.monogram.textContent = initialsOf(t.title);
@@ -127,9 +138,16 @@ function setCurrent(i, { load = false, play = false } = {}) {
   dom.body.classList.add('has-track');
   if (load) loadCurrent();
   if (play) playCurrent();
-  renderQueue();
+  refreshHighlight();
   setMediaSession(t);
   save();
+}
+
+function refreshHighlight() {
+  const items = dom.queue.children;
+  for (let i = 0; i < items.length; i++) {
+    items[i].classList.toggle('active', i === state.index);
+  }
 }
 
 function loadCurrent() {
@@ -139,7 +157,7 @@ function loadCurrent() {
   corsFallback = false;
   // batal pemuatan lama bila user ganti lagu cepat
   if (audio.src) { audio.removeAttribute('src'); audio.load(); }
-  audio.crossOrigin = (t.kind === 'url' && /^https?:/i.test(t.url)) ? 'anonymous' : null;
+  audio.crossOrigin = (t.kind === 'url' || t.kind === 'device') && /^https?:/i.test(t.url) ? 'anonymous' : null;
   audio.src = t.url;
   loadedId = t.id;
 }
@@ -211,6 +229,8 @@ function renderQueue() {
   dom.queueEmpty.hidden = n > 0;
   dom.queue.hidden = n === 0;
 
+  const frag = document.createDocumentFragment();
+
   state.tracks.forEach((t, i) => {
     const li = el('li', 'track' + (i === state.index ? ' active' : ''));
     li.dataset.i = i;
@@ -229,7 +249,7 @@ function renderQueue() {
 
     const col = el('span', 'col-main');
     col.appendChild(el('span', 't-title', t.title));
-    col.appendChild(el('span', 't-sub', t.kind === 'file' ? 'File lokal · sesi ini' : hostOf(t.url) + ' · stream'));
+    col.appendChild(el('span', 't-sub', subFor(t)));
 
     const dur = el('span', 't-dur', t.dur != null ? fmtTime(t.dur) : '—');
     main.appendChild(tile); main.appendChild(col); main.appendChild(dur);
@@ -240,8 +260,10 @@ function renderQueue() {
     rm.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg>';
 
     li.appendChild(main); li.appendChild(rm);
-    dom.queue.appendChild(li);
+    frag.appendChild(li);
   });
+
+  dom.queue.appendChild(frag);
 }
 
 /* ---------- demo chips ---------- */
@@ -323,7 +345,7 @@ audio.addEventListener('ended', () => {
 audio.addEventListener('error', () => {
   const t = current();
   if (!t) return;
-  if (audio.crossOrigin && t.kind === 'url') {
+  if (audio.crossOrigin && (t.kind === 'url' || t.kind === 'device')) {
     // coba sekali lagi tanpa crossOrigin (server tanpa CORS) — visualizer mati, audio jalan
     corsFallback = true;
     audio.crossOrigin = null;
@@ -539,7 +561,9 @@ function setMediaSession(t) {
   try {
     navigator.mediaSession.metadata = new MediaMetadata({
       title: t.title,
-      artist: t.kind === 'file' ? 'File lokal' : hostOf(t.url),
+      artist: t.kind === 'device'
+        ? (t.artist ? 'Musik dari HP · ' + t.artist : 'Musik dari HP')
+        : (t.kind === 'file' ? 'File lokal' : hostOf(t.url)),
       album: 'putar'
     });
   } catch { /* noop */ }
@@ -653,6 +677,72 @@ function restore() {
 for (const d of DEMOS) {
   dom.emptyDemos.appendChild(demoChip(d));
   dom.modalDemos.appendChild(demoChip(d));
+}
+
+/* ============================================================
+   scan musik HP — native Android (window.PutarNative.scan)
+   ============================================================ */
+function setScanUI(mode, label) {
+  dom.scanBar.classList.toggle('busy', mode === 'busy');
+  dom.scanBar.classList.toggle('ok', mode === 'ok');
+  dom.scanBar.classList.toggle('err', mode === 'err');
+  dom.scanBar.disabled = mode === 'busy';
+  if (label == null) { dom.scanState.hidden = true; dom.scanState.textContent = ''; }
+  else { dom.scanState.hidden = false; dom.scanState.textContent = label; }
+}
+
+window.__putarMusicScan = (res) => {
+  if (!res) return;
+  if (res.error === 'busy') return; // klik ganda — biarkan proses berjalan
+  if (!res.ok) {
+    setScanUI('err', 'Gagal');
+    dom.scanSub.textContent = 'Izinkan akses musik di Pengaturan Android untuk memindai';
+    if (res.error === 'permission') toast('Izin akses musik ditolak. Izinkan lewat Pengaturan Android, lalu pindai lagi.');
+    else toast('Pemindaian gagal — coba lagi.');
+    return;
+  }
+  const songs = Array.isArray(res.songs) ? res.songs : [];
+  const port = Number(res.port) || 0;
+  const seen = new Set();
+  for (const t of state.tracks) if (t.kind === 'device') seen.add(t.devId);
+  const batch = [];
+  for (const s of songs) {
+    const devId = Number(s.i);
+    if (!devId || seen.has(devId)) continue;
+    seen.add(devId);
+    batch.push({
+      id: uid(),
+      devId,
+      kind: 'device',
+      title: s.t || 'Tanpa judul',
+      artist: s.a || '',
+      url: 'http://127.0.0.1:' + port + '/s?id=' + devId + '&m=' + encodeURIComponent(s.m || 'audio/mpeg'),
+      dur: s.d ? s.d / 1000 : undefined
+    });
+  }
+  if (batch.length) {
+    state.tracks.push(...batch);
+    if (state.index === -1) setCurrent(0);
+    renderQueue();
+  }
+  setScanUI('ok', String(batch.length));
+  dom.scanSub.textContent = songs.length === batch.length
+    ? 'Semua musik sudah dimuat — pindai ulang untuk memperbarui'
+    : 'Pindai ulang untuk memperbarui daftar';
+  if (batch.length) toast(batch.length + ' musik dari HP ditambahkan ke playlist.');
+  else if (songs.length) toast('Semua musik di HP sudah ada di playlist.');
+  else toast('Tidak ada audio ditemukan di HP ini.');
+};
+
+if (window.PutarNative && typeof window.PutarNative.scan === 'function') {
+  dom.scanBar.hidden = false;
+  dom.scanBar.addEventListener('click', () => {
+    if (dom.scanBar.disabled) return;
+    setScanUI('busy', 'Memindai…');
+    dom.scanSub.textContent = 'Membaca pustaka musik di perangkatmu…';
+    try { window.PutarNative.scan(); }
+    catch { setScanUI('err', 'Gagal'); toast('Pemindaian gagal — coba lagi.'); }
+  });
 }
 applyVolumeUI();
 restore();
