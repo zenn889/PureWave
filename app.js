@@ -24,6 +24,10 @@ function hashHue(str) {
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
   return h % 360;
 }
+function initialsOf(title) {
+  const words = String(title).split(/\s+/).filter(Boolean).slice(0, 2);
+  return words.map(w => w[0].toUpperCase()).join('') || '♪';
+}
 function hostOf(url) {
   try { return new URL(url).hostname.replace(/^www\./, ''); }
   catch { return 'stream'; }
@@ -53,6 +57,7 @@ audio.preload = 'metadata';
 
 /* equalizer */
 let eqCtx = null, eqAnalyser = null, eqSource = null, eqOk = false, corsFallback = false, loadedId = null;
+let eqHue = 14;
 const eqCanvas = $('#eq');
 const eqCv = eqCanvas.getContext('2d');
 
@@ -67,6 +72,7 @@ const dom = {
   btnShuffle: $('#btnShuffle'), btnRepeat: $('#btnRepeat'),
   btnMute: $('#btnMute'), vol: $('#vol'),
   btnFiles: $('#btnFiles'), fileInput: $('#fileInput'), btnUrl: $('#btnUrl'),
+  stage: $('#stage'),
   modal: $('#modal'), urlInput: $('#urlInput'), urlForm: $('#urlForm'),
   btnCancel: $('#btnCancel'), modalClose: $('#modalClose'),
   emptyDemos: $('#emptyDemos'), modalDemos: $('#modalDemos'),
@@ -86,13 +92,20 @@ function toast(msg) {
    ============================================================ */
 function current() { return state.tracks[state.index] || null; }
 
+function applyStageHue(hue) {
+  dom.stage.style.setProperty('--h', hue);
+  dom.stage.style.setProperty('--h2', (hue + 45) % 360);
+  eqHue = hue;
+}
+
 function setCurrent(i, { load = false, play = false } = {}) {
   state.index = i;
   const t = current();
   if (!t) {
+    applyStageHue(14);
     dom.kicker.textContent = '—';
     dom.trackTitle.textContent = 'Belum ada lagu';
-    dom.monogram.textContent = '?';
+    dom.monogram.textContent = '♪';
     dom.discLabel.style.background = '';
     dom.curT.textContent = '0:00';
     dom.durT.textContent = '0:00';
@@ -101,12 +114,13 @@ function setCurrent(i, { load = false, play = false } = {}) {
     dom.body.classList.remove('has-track');
     return;
   }
+  const hue = hashHue(t.title);
+  applyStageHue(hue);
   dom.kicker.textContent = t.kind === 'file' ? 'File lokal' : 'Stream · ' + hostOf(t.url);
   dom.trackTitle.textContent = t.title;
   dom.trackTitle.title = t.title;
-  const initials = t.title.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('') || '♪';
-  dom.monogram.textContent = initials;
-  dom.discLabel.style.background = 'hsl(' + hashHue(t.title) + ' 72% 58%)';
+  dom.monogram.textContent = initialsOf(t.title);
+  dom.discLabel.style.background = 'hsl(' + hue + ' 80% 55%)';
   dom.curT.textContent = '0:00';
   dom.durT.textContent = t.dur ? fmtTime(t.dur) : '0:00';
   dom.seek.value = 0; setSeekFill(0);
@@ -204,18 +218,20 @@ function renderQueue() {
     main.type = 'button';
     main.setAttribute('aria-label', 'Putar ' + t.title);
 
-    const idx = el('span', 'col-idx');
-    const num = el('span', 'num', String(i + 1).padStart(2, '0'));
+    const hue = hashHue(t.title);
+    const tile = el('span', 'tile');
+    tile.style.background = 'linear-gradient(145deg, hsl(' + hue + ' 84% 62%), hsl(' + ((hue + 55) % 360) + ' 72% 38%))';
+    tile.appendChild(el('span', 'tm', initialsOf(t.title)));
     const mini = el('span', 'eq-mini');
     for (let k = 0; k < 4; k++) mini.appendChild(el('i'));
-    idx.appendChild(num); idx.appendChild(mini);
+    tile.appendChild(mini);
 
     const col = el('span', 'col-main');
     col.appendChild(el('span', 't-title', t.title));
     col.appendChild(el('span', 't-sub', t.kind === 'file' ? 'File lokal · sesi ini' : hostOf(t.url) + ' · stream'));
 
     const dur = el('span', 't-dur', t.dur != null ? fmtTime(t.dur) : '—');
-    main.appendChild(idx); main.appendChild(col); main.appendChild(dur);
+    main.appendChild(tile); main.appendChild(col); main.appendChild(dur);
 
     const rm = el('button', 'rm');
     rm.type = 'button';
@@ -423,17 +439,50 @@ function drawEQ() {
   const w = eqCanvas.width, h = eqCanvas.height;
   if (!w || !h) { sizeEQ(); return; }
   eqCv.clearRect(0, 0, w, h);
-  const bars = 48, bw = (w / bars) * 0.55, gap = (w / bars) * 0.45;
-  eqCv.fillStyle = 'rgba(255,90,54,.85)';
-  const data = new Uint8Array(eqAnalyser ? eqAnalyser.frequencyBinCount : 0);
-  const haveSignal = !!(eqAnalyser && eqOk && !audio.paused);
-  if (eqAnalyser && eqOk && !audio.paused) eqAnalyser.getByteFrequencyData(data);
-  for (let i = 0; i < bars; i++) {
-    const v = haveSignal ? data[Math.floor((i / bars) * data.length * 0.8)] : 0;
-    const bh = Math.max(1.5, (v / 255) * h * 0.96);
-    const x = i * (w / bars) + gap / 2;
-    if (haveSignal) eqCv.fillRect(x, h - bh, bw, bh);
-    else { eqCv.fillStyle = 'rgba(255,255,255,.05)'; eqCv.fillRect(x, h - 1.5, bw, 1.5); eqCv.fillStyle = 'rgba(255,90,54,.85)'; }
+
+  const bars = 56, slot = w / bars, bw = slot * 0.58, x0 = slot * 0.21;
+  const playing = !audio.paused;
+  const live = !!(eqAnalyser && eqOk);
+
+  // data frekuensi asli
+  if (live && playing) {
+    const data = new Uint8Array(eqAnalyser.frequencyBinCount);
+    eqAnalyser.getByteFrequencyData(data);
+    eqCv.fillStyle = 'hsla(' + eqHue + ', 95%, 64%, .95)';
+    for (let i = 0; i < bars; i++) {
+      const v = data[Math.floor((i / bars) * data.length * 0.72)];
+      const bh = Math.max(3, (v / 255) * (h - 2));
+      bar(eqCv, x0 + i * slot, h - bh, bw, bh);
+    }
+    return;
+  }
+
+  // sedang main tapi analyser tak tersedia → shimmer halus
+  if (playing) {
+    const t = performance.now();
+    const amp = h * 0.14;
+    eqCv.fillStyle = 'hsla(' + eqHue + ', 80%, 62%, .4)';
+    for (let i = 0; i < bars; i++) {
+      const s = Math.sin(t / 320 + i * 0.42);
+      const bh = Math.max(2, (0.5 + s * 0.5) * amp + 2);
+      bar(eqCv, x0 + i * slot, h - bh, bw, bh);
+    }
+    return;
+  }
+
+  // diam: garis dasar tipis
+  eqCv.fillStyle = 'rgba(255,255,255,.06)';
+  for (let i = 0; i < bars; i++) bar(eqCv, x0 + i * slot, h - 1.5, bw, 1.5);
+}
+
+function bar(ctx, x, y, w, h) {
+  const r = Math.min(w / 2, h / 2);
+  if (ctx.roundRect) {
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, r);
+    ctx.fill();
+  } else {
+    ctx.fillRect(x, y, w, h);
   }
 }
 
