@@ -91,8 +91,12 @@ import com.zenn889.putar.ui.MiniPlayer
 import com.zenn889.putar.ui.NowPlayingSheet
 import com.zenn889.putar.ui.PlaylistBrowserSheet
 import com.zenn889.putar.ui.PlayerMirror
+import com.zenn889.putar.ui.QueueEntry
+import com.zenn889.putar.ui.QueueSheet
 import com.zenn889.putar.ui.SettingsSheet
 import com.zenn889.putar.ui.SimpleEmpty
+import com.zenn889.putar.ui.SortMenuButton
+import com.zenn889.putar.ui.SortOption
 import com.zenn889.putar.ui.TrackContextSheet
 import com.zenn889.putar.ui.buildArtistItems
 import com.zenn889.putar.ui.buildFolderItems
@@ -166,6 +170,19 @@ private fun Track.toMediaItem(): MediaItem =
 
 private fun currentMediaItemUri(c: MediaController?): String? =
     c?.currentMediaItem?.mediaId
+
+private fun sortedTracks(list: List<Track>, sort: SortOption): List<Track> =
+    when (sort) {
+        SortOption.JUDUL -> list.sortedBy { it.title.lowercase() }
+        SortOption.ARTIS -> list.sortedWith(
+            compareBy({ it.displayArtist.lowercase() }, { it.title.lowercase() })
+        )
+        SortOption.ALBUM -> list.sortedWith(
+            compareBy({ (it.albumTitle ?: "").lowercase() }, { it.title.lowercase() })
+        )
+        SortOption.TERBARU -> list.sortedByDescending { it.dateAddedMs }
+        SortOption.DURASI -> list.sortedBy { it.durationMs }
+    }
 
 private fun readMirror(player: Player): PlayerMirror {
     val meta = player.mediaMetadata
@@ -250,6 +267,28 @@ fun PlayerApp() {
     var tab by remember { mutableStateOf(LibraryTab.LAGU) }
     var favUris by remember { mutableStateOf(FavStore.load(context)) }
     var playlists by remember { mutableStateOf(PlaylistStore.list(context)) }
+    var sortChoice by remember { mutableStateOf(SortOption.JUDUL) }
+
+    // antrian (lihat/urut/hapus)
+    var showQueue by remember { mutableStateOf(false) }
+    var queueEntries by remember { mutableStateOf<List<QueueEntry>>(emptyList()) }
+
+    fun refreshQueueEntries() {
+        val c = controller
+        if (c == null) { queueEntries = emptyList(); return }
+        val n = c.mediaItemCount
+        if (n == 0) { queueEntries = emptyList(); return }
+        queueEntries = List(n) { i ->
+            val mi = c.getMediaItemAt(i)
+            val m = mi.mediaMetadata
+            QueueEntry(
+                uri = mi.mediaId,
+                title = m.title?.toString() ?: "Tanpa judul",
+                artist = m.artist?.toString() ?: "",
+                artwork = m.artworkUri
+            )
+        }
+    }
 
     // menu konteks (tekan lama), tambah-ke-playlist, kelola playlist
     var contextTrack by remember { mutableStateOf<Track?>(null) }
@@ -296,12 +335,13 @@ fun PlayerApp() {
     val folderItems = remember(tracks) { buildFolderItems(tracks) }
 
     val q = query.trim()
-    val rootSongs = remember(tracks, q) {
-        if (q.isEmpty()) tracks
+    val rootSongs = remember(tracks, q, sortChoice) {
+        val base = if (q.isEmpty()) tracks
         else tracks.filter {
             it.title.contains(q, ignoreCase = true) ||
                 it.displayArtist.contains(q, ignoreCase = true)
         }
+        sortedTracks(base, sortChoice)
     }
     val rootAlbums = remember(albums, q) {
         if (q.isEmpty()) albums
@@ -323,12 +363,13 @@ fun PlayerApp() {
     val favTracks = remember(tracks, favUris) {
         tracks.filter { favUris.contains(it.contentUri.toString()) }
     }
-    val favQueryTracks = remember(favTracks, q) {
-        if (q.isEmpty()) favTracks
+    val favQueryTracks = remember(favTracks, q, sortChoice) {
+        val base = if (q.isEmpty()) favTracks
         else favTracks.filter {
             it.title.contains(q, ignoreCase = true) ||
                 it.displayArtist.contains(q, ignoreCase = true)
         }
+        sortedTracks(base, sortChoice)
     }
 
     // daftar detail
@@ -593,7 +634,10 @@ fun PlayerApp() {
                                 tab = it
                             },
                             onOpenSettings = { showSettings = true },
-                            onPlayAllShuffled = { playList(rootSongs, 0, shuffled = true) }
+                            onPlayAllShuffled = { playList(rootSongs, 0, shuffled = true) },
+                            showSort = tab == LibraryTab.LAGU || tab == LibraryTab.FAVORIT,
+                            sortChoice = sortChoice,
+                            onSortChange = { sortChoice = it }
                         )
                         when (tab) {
                             LibraryTab.LAGU -> if (rootSongs.isEmpty()) {
@@ -691,6 +735,10 @@ fun PlayerApp() {
             isFavorite = (currentMediaItemUri(controller) ?: "") in favUris,
             onToggleFavorite = {
                 currentMediaItemUri(controller)?.let { toggleFav(it) }
+            },
+            onOpenQueue = {
+                refreshQueueEntries()
+                showQueue = true
             }
             )
     }
@@ -777,6 +825,33 @@ fun PlayerApp() {
         )
     }
 
+    if (showQueue) {
+        QueueSheet(
+            entries = queueEntries,
+            currentUri = currentMediaItemUri(controller),
+            onPlay = { i ->
+                controller?.let { c ->
+                    runCatching { c.seekTo(i, 0L) }
+                    c.play()
+                }
+                refreshQueueEntries()
+            },
+            onMoveUp = { i ->
+                controller?.let { c -> runCatching { c.moveMediaItem(i, i - 1) } }
+                refreshQueueEntries()
+            },
+            onMoveDown = { i ->
+                controller?.let { c -> runCatching { c.moveMediaItem(i, i + 1) } }
+                refreshQueueEntries()
+            },
+            onRemove = { i ->
+                controller?.let { c -> runCatching { c.removeMediaItem(i) } }
+                refreshQueueEntries()
+            },
+            onDismiss = { showQueue = false }
+        )
+    }
+
     if (showSleepDialog) {
         SleepTimerDialog(
             active = sleepUntil > 0L,
@@ -809,7 +884,10 @@ private fun LibraryHeader(
     onQueryChange: (String) -> Unit,
     onTabSelect: (LibraryTab) -> Unit,
     onOpenSettings: () -> Unit,
-    onPlayAllShuffled: () -> Unit
+    onPlayAllShuffled: () -> Unit,
+    showSort: Boolean,
+    sortChoice: SortOption,
+    onSortChange: (SortOption) -> Unit
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -842,6 +920,9 @@ private fun LibraryHeader(
                     style = MaterialTheme.typography.bodySmall,
                     color = MutedInk
                 )
+            }
+            if (showSort) {
+                SortMenuButton(current = sortChoice, onSelect = onSortChange)
             }
             IconButton(onClick = onOpenSettings) {
                 Icon(Icons.Filled.Settings, contentDescription = "Setelan", tint = MutedInk)

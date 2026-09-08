@@ -11,6 +11,10 @@ akun, tanpa iklan.**
   memutar seluruh isinya.
 - **Auto-resume**: lagu terakhir + posisinya + antrian diingat; saat app
   dibuka lagi tinggal tekan play untuk melanjutkan.
+- **Antrian terlihat**: ikon antrian di layar pemutar penuh — lihat daftar
+  putar berikutnya, lompat ke lagu, urut-ulang (atas/bawah), hapus item.
+- **Sortir lengkap** di tab Lagu & Favorit: Judul A-Z, Artis, Album,
+  Terbaru, Durasi.
 - **Menu konteks** (tekan lama pada lagu): putar sekarang / berikutnya,
   tambah ke antrian, tandai favorit, tambah ke playlist.
 - **Favorit**: tab Favorit + tombol hati di layar pemutar penuh.

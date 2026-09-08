@@ -22,6 +22,8 @@ class MusicRepository(private val context: Context) {
             add(MediaStore.Audio.Media.ARTIST)
             add(MediaStore.Audio.Media.DURATION)
             add(MediaStore.Audio.Media.ALBUM_ID)
+            add(MediaStore.Audio.Media.ALBUM)
+            add(MediaStore.Audio.Media.DATE_ADDED)
             add(if (useRelative) MediaStore.MediaColumns.RELATIVE_PATH else MediaStore.MediaColumns.DATA)
         }.toTypedArray()
         val selection = "${MediaStore.Audio.Media.DURATION} > 3000" // buang bunyi < 3 detik
@@ -33,6 +35,8 @@ class MusicRepository(private val context: Context) {
                 val iArtist = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
                 val iDur = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
                 val iAlbum = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+                val iAlbumName = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+                val iDate = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
                 val iFolder = c.getColumnIndexOrThrow(
                     if (useRelative) MediaStore.MediaColumns.RELATIVE_PATH
                     else MediaStore.MediaColumns.DATA
@@ -62,7 +66,9 @@ class MusicRepository(private val context: Context) {
                             },
                             durationMs = c.getLong(iDur),
                             albumId = albumId,
-                            folder = folder
+                            folder = folder,
+                            albumTitle = c.getString(iAlbumName),
+                            dateAddedMs = if (c.isNull(iDate)) 0L else c.getLong(iDate) * 1000L
                         )
                     )
                 }

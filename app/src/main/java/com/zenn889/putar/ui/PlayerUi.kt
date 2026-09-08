@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
@@ -247,7 +248,8 @@ fun NowPlayingSheet(
     sleepLabel: String?,
     onSleep: () -> Unit,
     isFavorite: Boolean,
-    onToggleFavorite: () -> Unit
+    onToggleFavorite: () -> Unit,
+    onOpenQueue: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -288,6 +290,13 @@ fun NowPlayingSheet(
                         imageVector = Icons.Filled.Timer,
                         contentDescription = "Sleep timer",
                         tint = if (sleepActive) Coral else FaintInk
+                    )
+                }
+                IconButton(onClick = onOpenQueue) {
+                    Icon(
+                        imageVector = Icons.Filled.QueueMusic,
+                        contentDescription = "Antrian",
+                        tint = FaintInk
                     )
                 }
                 IconButton(onClick = onOpenEqualizer) {

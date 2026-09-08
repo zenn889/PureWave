@@ -11,7 +11,11 @@ data class Track(
     val durationMs: Long,
     val albumId: Long?,
     /** lokasi folder (RELATIVE_PATH API 29+, path induk utk versi lama); null = tak diketahui */
-    val folder: String? = null
+    val folder: String? = null,
+    /** nama album (utk sortir) */
+    val albumTitle: String? = null,
+    /** epoch millis saat file ditambahkan (utk sortir terbaru) */
+    val dateAddedMs: Long = 0L
 ) {
     val displayArtist: String
         get() = artist.ifBlank { "Artis tak dikenal" }
