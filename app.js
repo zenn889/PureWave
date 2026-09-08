@@ -78,7 +78,7 @@ const eqCv = eqCanvas.getContext('2d');
 /* ---------- dom refs ---------- */
 const dom = {
   body: document.body,
-  kicker: $('#kicker'), trackTitle: $('#trackTitle'),
+  kicker: $('#kicker'), trackTitle: $('#trackTitle'), trackArtist: $('#trackArtist'),
   monogram: $('#monogram'), discLabel: $('#discLabel'),
   curT: $('#curT'), durT: $('#durT'), seek: $('#seek'),
   queue: $('#queue'), queueEmpty: $('#queueEmpty'), countChip: $('#countChip'),
@@ -120,6 +120,8 @@ function setCurrent(i, { load = false, play = false } = {}) {
     applyStageHue(14);
     dom.kicker.textContent = '—';
     dom.trackTitle.textContent = 'Belum ada lagu';
+    dom.trackArtist.hidden = true;
+    dom.trackArtist.textContent = '';
     dom.monogram.textContent = '♪';
     dom.discLabel.style.background = '';
     dom.curT.textContent = '0:00';
@@ -134,6 +136,13 @@ function setCurrent(i, { load = false, play = false } = {}) {
   dom.kicker.textContent = kindLabel(t);
   dom.trackTitle.textContent = t.title;
   dom.trackTitle.title = t.title;
+  if (t.kind === 'device' && t.artist) {
+    dom.trackArtist.textContent = t.artist;
+    dom.trackArtist.hidden = false;
+  } else {
+    dom.trackArtist.textContent = '';
+    dom.trackArtist.hidden = true;
+  }
   dom.monogram.textContent = initialsOf(t.title);
   dom.discLabel.style.background = 'hsl(' + hue + ' 80% 55%)';
   dom.curT.textContent = '0:00';
