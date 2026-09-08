@@ -187,12 +187,13 @@ function addUrlTrack(title, url) {
 }
 
 function addFiles(fileList) {
-  const files = Array.from(fileList).filter(f => f.type.startsWith('audio/') || AUDIO_EXT.test(f.name));
+  // WebView Android memberi nama file kosong utk hasil picker → terima audio apa pun yang lolos filter input
+  const files = Array.from(fileList).filter(f => f.type.startsWith('audio/') || AUDIO_EXT.test(f.name) || f.type === '');
   if (!files.length) { toast('Tidak ada file audio yang dikenali.'); return; }
   for (const f of files) {
     state.tracks.push({
       id: uid(),
-      title: f.name.replace(/\.[^.]+$/, ''),
+      title: f.name ? f.name.replace(/\.[^.]+$/, '') : 'Lagu dari perangkat',
       url: URL.createObjectURL(f),
       kind: 'file'
     });
