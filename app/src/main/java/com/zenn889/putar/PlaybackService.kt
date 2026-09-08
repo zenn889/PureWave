@@ -3,6 +3,7 @@ package com.zenn889.putar
 import android.content.Intent
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -19,6 +20,7 @@ class PlaybackService : MediaSessionService() {
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         // notifikasi kontrol memakai provider default media3 (ikon internal)
         val player = ExoPlayer.Builder(this)
             .build()
@@ -31,6 +33,15 @@ class PlaybackService : MediaSessionService() {
                     /* handleAudioFocus = */ true
                 )
                 setHandleAudioBecomingNoisy(true)
+                // tempel equalizer/bass ke sesi audio saat tersedia
+                addListener(object : Player.Listener {
+                    override fun onEvents(player: Player, events: Player.Events) {
+                        if (events.contains(Player.EVENT_AUDIO_SESSION_ID)) {
+                            val sid = (player as? ExoPlayer)?.audioSessionId ?: 0
+                            if (sid > 0) AudioFx.attach(applicationContext, sid)
+                        }
+                    }
+                })
             }
         mediaSession = MediaSession.Builder(this, player).build()
     }
@@ -47,11 +58,19 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        AudioFx.release()
+        instance = null
         mediaSession?.run {
             player.release()
             release()
         }
         mediaSession = null
         super.onDestroy()
+    }
+
+    companion object {
+        @Volatile
+        private var instance: PlaybackService? = null
+        fun current(): PlaybackService? = instance
     }
 }

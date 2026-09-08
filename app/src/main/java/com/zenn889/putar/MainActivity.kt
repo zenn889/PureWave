@@ -4,14 +4,15 @@ import android.Manifest
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -25,34 +26,44 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shuffle
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -60,14 +71,17 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.zenn889.putar.data.MusicRepository
 import com.zenn889.putar.data.Track
+import com.zenn889.putar.ui.EqualizerSheet
 import com.zenn889.putar.ui.LibraryList
 import com.zenn889.putar.ui.MiniPlayer
 import com.zenn889.putar.ui.NowPlayingSheet
 import com.zenn889.putar.ui.PlayerMirror
+import com.zenn889.putar.ui.fmtMs
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.FaintInk
 import com.zenn889.putar.ui.theme.MutedInk
 import com.zenn889.putar.ui.theme.PutarTheme
+import com.zenn889.putar.ui.theme.SurfaceHigh
 import kotlinx.coroutines.delay
 import kotlin.random.Random
 
@@ -90,6 +104,10 @@ private fun readPermission(): String =
 
 private fun Context.hasReadPermission(): Boolean =
     ContextCompat.checkSelfPermission(this, readPermission()) == PackageManager.PERMISSION_GRANTED
+
+private fun Context.versionName(): String =
+    runCatching { packageManager.getPackageInfo(packageName, 0).versionName }
+        .getOrNull() ?: ""
 
 private fun Track.toMediaItem(): MediaItem =
     MediaItem.Builder()
@@ -161,10 +179,11 @@ fun PlayerApp() {
         }
     }
 
-    // --- pustaka & izin ---
+    // --- pustaka, izin, pencarian ---
     var granted by remember { mutableStateOf(context.hasReadPermission()) }
     var tracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -188,10 +207,19 @@ fun PlayerApp() {
         permissionLauncher.launch(perms.toTypedArray())
     }
 
-    fun playFrom(index: Int, shuffled: Boolean) {
-        if (tracks.isEmpty()) return
+    val shownTracks = remember(tracks, query) {
+        val q = query.trim()
+        if (q.isEmpty()) tracks
+        else tracks.filter {
+            it.title.contains(q, ignoreCase = true) ||
+                it.displayArtist.contains(q, ignoreCase = true)
+        }
+    }
+
+    fun playFrom(list: List<Track>, index: Int, shuffled: Boolean) {
+        if (list.isEmpty()) return
         val c = controller ?: return
-        val items = tracks.map { it.toMediaItem() }
+        val items = list.map { it.toMediaItem() }
         val start = if (shuffled) Random.nextInt(items.size) else index
         c.shuffleModeEnabled = false
         c.setMediaItems(items, start, 0L)
@@ -200,7 +228,28 @@ fun PlayerApp() {
         c.play()
     }
 
+    // --- sleep timer ---
+    var sleepUntil by remember { mutableLongStateOf(0L) }
+    var sleepLeftMs by remember { mutableLongStateOf(0L) }
+    var showSleepDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(sleepUntil) {
+        while (sleepUntil > 0L) {
+            val left = sleepUntil - SystemClock.elapsedRealtime()
+            if (left <= 0L) {
+                sleepUntil = 0L
+                sleepLeftMs = 0L
+                controller?.pause()
+                break
+            }
+            sleepLeftMs = left
+            delay(1000)
+        }
+    }
+
+    // --- layar tambahan ---
     var showFullPlayer by remember { mutableStateOf(false) }
+    var showEq by remember { mutableStateOf(false) }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -218,21 +267,37 @@ fun PlayerApp() {
         Box(Modifier.padding(padding).fillMaxSize()) {
             when {
                 !granted -> PermissionScreen(onRequest = ::requestPermissions)
-                loading -> androidx.compose.material3.CircularProgressIndicator(
+                loading -> CircularProgressIndicator(
                     color = Coral,
                     modifier = Modifier.align(Alignment.Center)
                 )
                 tracks.isEmpty() -> EmptyLibraryScreen()
                 else -> Column(Modifier.fillMaxSize()) {
                     LibraryHeader(
-                        count = tracks.size,
-                        onPlayAllShuffled = { playFrom(0, shuffled = true) }
+                        context = context,
+                        shownCount = shownTracks.size,
+                        totalCount = tracks.size,
+                        query = query,
+                        onQueryChange = { query = it },
+                        onPlayAllShuffled = { playFrom(shownTracks, 0, shuffled = true) }
                     )
-                    LibraryList(
-                        tracks = tracks,
-                        currentMediaId = currentMediaItemUri(controller),
-                        onPlay = { playFrom(it, shuffled = false) }
-                    )
+                    if (shownTracks.isEmpty()) {
+                        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text(
+                                "Tidak ada lagu cocok dengan \"$query\"",
+                                color = MutedInk,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(24.dp)
+                            )
+                        }
+                    } else {
+                        LibraryList(
+                            tracks = shownTracks,
+                            currentMediaId = currentMediaItemUri(controller),
+                            onPlay = { playFrom(shownTracks, it, shuffled = false) },
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
             }
         }
@@ -257,7 +322,32 @@ fun PlayerApp() {
                         else -> Player.REPEAT_MODE_OFF
                     }
                 }
-            }
+            },
+            onOpenEqualizer = { showEq = true },
+            sleepActive = sleepUntil > 0L,
+            sleepLabel = if (sleepUntil > 0L) "Sleep ${fmtMs(sleepLeftMs)}" else null,
+            onSleep = { showSleepDialog = true }
+        )
+    }
+
+    if (showEq) {
+        EqualizerSheet(onDismiss = { showEq = false })
+    }
+
+    if (showSleepDialog) {
+        SleepTimerDialog(
+            active = sleepUntil > 0L,
+            onCancel = {
+                sleepUntil = 0L
+                sleepLeftMs = 0L
+                showSleepDialog = false
+            },
+            onPickMinutes = { minutes ->
+                sleepUntil = SystemClock.elapsedRealtime() + minutes * 60_000L
+                sleepLeftMs = minutes * 60_000L
+                showSleepDialog = false
+            },
+            onDismiss = { showSleepDialog = false }
         )
     }
 }
@@ -283,30 +373,134 @@ private fun readMirror(player: Player): PlayerMirror {
 }
 
 @Composable
-private fun LibraryHeader(count: Int, onPlayAllShuffled: () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp)) {
+private fun LibraryHeader(
+    context: Context,
+    shownCount: Int,
+    totalCount: Int,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onPlayAllShuffled: () -> Unit
+) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            // logo + identitas
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painterResource(R.mipmap.ic_launcher),
+                    contentDescription = "putar",
+                    tint = Color.Unspecified,
+                    modifier = Modifier.size(42.dp).clip(CircleShape)
+                )
+            }
+            Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = "Pustaka lagu",
-                    style = MaterialTheme.typography.headlineSmall,
+                    "putar",
+                    style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = if (count == 1) "1 lagu di perangkat" else "$count lagu di perangkat",
+                    "Pemutar offline · v${context.versionName()}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MutedInk
                 )
             }
             FilledTonalButton(onClick = onPlayAllShuffled) {
-                Icon(Icons.Filled.Shuffle, contentDescription = null,
-                    tint = Coral, modifier = Modifier.size(18.dp))
+                Icon(
+                    Icons.Filled.Shuffle, contentDescription = null,
+                    tint = Coral, modifier = Modifier.size(18.dp)
+                )
                 Spacer(Modifier.width(6.dp))
-                Text("Putar acak", color = MaterialTheme.colorScheme.onSurface)
+                Text("Acak semua", color = MaterialTheme.colorScheme.onSurface)
             }
         }
+
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            singleLine = true,
+            placeholder = { Text("Cari judul atau artis…", color = FaintInk) },
+            leadingIcon = {
+                Icon(Icons.Filled.Search, contentDescription = null, tint = MutedInk)
+            },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = { onQueryChange("") }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Bersihkan", tint = FaintInk)
+                    }
+                }
+            },
+            shape = RoundedCornerShape(14.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Coral,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedContainerColor = SurfaceHigh,
+                unfocusedContainerColor = SurfaceHigh,
+                cursorColor = Coral,
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = if (query.isBlank()) {
+                if (totalCount == 1) "1 lagu di perangkat" else "$totalCount lagu di perangkat"
+            } else {
+                "$shownCount dari $totalCount lagu"
+            },
+            style = MaterialTheme.typography.bodySmall,
+            color = MutedInk,
+            modifier = Modifier.padding(start = 4.dp)
+        )
     }
+}
+
+@Composable
+private fun SleepTimerDialog(
+    active: Boolean,
+    onCancel: () -> Unit,
+    onPickMinutes: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text("Sleep timer", fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                if (active) {
+                    TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
+                        Text("Matikan sleep timer", color = Coral, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+                listOf(10, 15, 30, 45, 60, 90).forEach { minutes ->
+                    TextButton(
+                        onClick = { onPickMinutes(minutes) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            if (minutes < 60) "$minutes menit" else "1 jam ${minutes - 60} menit".trimEnd(),
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Batal", color = MutedInk) }
+        }
+    )
 }
 
 @Composable
@@ -337,7 +531,7 @@ private fun PermissionScreen(onRequest: () -> Unit) {
             style = MaterialTheme.typography.bodyMedium,
             color = MutedInk,
             modifier = Modifier.fillMaxWidth(),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(24.dp))
         Button(
@@ -373,7 +567,7 @@ private fun EmptyLibraryScreen() {
             "Tidak ada file audio (durasi > 3 detik) di perangkat ini.",
             style = MaterialTheme.typography.bodyMedium,
             color = MutedInk,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = TextAlign.Center
         )
     }
 }

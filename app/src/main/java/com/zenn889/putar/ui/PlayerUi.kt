@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.filled.RepeatOne
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -233,7 +235,11 @@ fun NowPlayingSheet(
     onPrev: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
-    onToggleRepeat: () -> Unit
+    onToggleRepeat: () -> Unit,
+    onOpenEqualizer: () -> Unit,
+    sleepActive: Boolean,
+    sleepLabel: String?,
+    onSleep: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -248,9 +254,38 @@ fun NowPlayingSheet(
                 .padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (sleepLabel != null) {
+                    Text(
+                        text = sleepLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Coral,
+                        modifier = Modifier.padding(end = 4.dp)
+                    )
+                }
+                IconButton(onClick = onSleep) {
+                    Icon(
+                        imageVector = Icons.Filled.Timer,
+                        contentDescription = "Sleep timer",
+                        tint = if (sleepActive) Coral else FaintInk
+                    )
+                }
+                IconButton(onClick = onOpenEqualizer) {
+                    Icon(
+                        imageVector = Icons.Filled.Equalizer,
+                        contentDescription = "Equalizer",
+                        tint = FaintInk
+                    )
+                }
+            }
+            Spacer(Modifier.height(6.dp))
             AlbumArt(
                 uri = mirror.artwork,
-                size = 240.dp,
+                size = 224.dp,
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier.aspectRatio(1f)
             )
@@ -353,10 +388,11 @@ fun CenteredLoading() {
 fun LibraryList(
     tracks: List<Track>,
     currentMediaId: String?,
-    onPlay: (index: Int) -> Unit
+    onPlay: (index: Int) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
             start = 8.dp, end = 8.dp, top = 4.dp, bottom = 16.dp
         )

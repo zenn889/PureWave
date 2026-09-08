@@ -8,12 +8,19 @@ akun, tanpa iklan.**
 
 - **Pustaka otomatis**: semua audio di perangkat (MediaStore) dimuat —
   judul, artis, durasi, urut abjad. Sekali izin, langsung muncul.
+- **Pencarian** judul/artis di pustaka.
 - **Album art asli** dari metadata file (Coil).
 - **Pemutar sesungguhnya (Media3/ExoPlayer)**: play/pause, next/prev, seek,
-  shuffle, repeat (off/semua/satu), "Putar acak" satu ketukan.
+  shuffle, repeat (off/semua/satu), "Acak semua" satu ketukan.
+- **Equalizer** native (android.media.audiofx): 5 pita (60 Hz–14 kHz),
+  preset Pop/Rock/Jazz/Klasik/Dance/Bass, Bass Boost, reset — setelan
+  tersimpan & menempel otomatis ke sesi audio.
+- **Sleep timer**: 10–90 menit, musik berhenti sendiri; status & sisa
+  waktu tampil di layar pemutar.
 - **Kontrol di notifikasi & lock screen** + lanjut main di latar belakang
   (MediaSessionService; audio focus; pause otomatis saat headset dicabut).
 - 100% offline — APK bahkan tidak meminta izin INTERNET.
+- Identitas: logo not musik gradient coral (adaptive icon), nama "putar".
 
 ## Unduh
 
@@ -31,11 +38,13 @@ Prasyarat: JDK 17+, Android SDK (compileSdk 36).
 ## Struktur
 
     app/src/main/java/com/zenn889/putar/
-      MainActivity.kt          layar & alur: izin → pustaka → pemutar
-      PlaybackService.kt       service Media3 (notifikasi/lock screen)
+      MainActivity.kt          layar & alur: izin → pustaka → pemutar + sleep timer
+      PlaybackService.kt       service Media3 (notifikasi/lock screen + tempel AudioFx)
+      AudioFx.kt               equalizer 5 pita & bass boost (persist, menempel ke sesi)
       data/MusicRepository.kt  query MediaStore (audio perangkat)
       data/Track.kt            model lagu
       ui/PlayerUi.kt           daftar lagu, mini player, layar penuh
+      ui/EqualizerSheet.kt     panel equalizer & bass
       ui/theme/Theme.kt        tema gelap khas putar
 
 ## Catatan
