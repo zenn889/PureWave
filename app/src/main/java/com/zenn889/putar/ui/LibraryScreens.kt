@@ -131,6 +131,41 @@ fun AlbumRow(album: Album, onClick: () -> Unit) {
     }
 }
 
+/** Kartu album persegi untuk tab Album (kisi ala Spotify). */
+@Composable
+fun AlbumCard(album: Album, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 2.dp, vertical = 4.dp)
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        AlbumArt(
+            uri = MusicRepository.albumArtUri(album.albumId),
+            size = 148.dp,
+            shape = RoundedCornerShape(14.dp)
+        )
+        Spacer(Modifier.height(6.dp))
+        Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+            Text(
+                album.title,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                "${album.displayArtist} · ${album.songCount} lagu",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.labelSmall,
+                color = MutedInk
+            )
+        }
+    }
+}
+
 @Composable
 fun ArtistRow(name: String, songCount: Int, onClick: () -> Unit) {
     Row(

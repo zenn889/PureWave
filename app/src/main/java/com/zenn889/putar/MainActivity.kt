@@ -26,7 +26,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -80,6 +84,7 @@ import com.zenn889.putar.data.PlaylistStore
 import com.zenn889.putar.data.SessionStore
 import com.zenn889.putar.data.Track
 import com.zenn889.putar.ui.AddToPlaylistSheet
+import com.zenn889.putar.ui.AlbumCard
 import com.zenn889.putar.ui.AlbumRow
 import com.zenn889.putar.ui.ArtistRow
 import com.zenn889.putar.ui.BackBar
@@ -96,11 +101,13 @@ import com.zenn889.putar.ui.PlayerMirror
 import com.zenn889.putar.ui.ProgressState
 import com.zenn889.putar.ui.QueueEntry
 import com.zenn889.putar.ui.QueueSheet
+import com.zenn889.putar.ui.RecentlyAddedRow
 import com.zenn889.putar.ui.SettingsSheet
 import com.zenn889.putar.ui.SimpleEmpty
 import com.zenn889.putar.ui.SortMenuButton
 import com.zenn889.putar.ui.SortOption
 import com.zenn889.putar.ui.TrackContextSheet
+import com.zenn889.putar.ui.TrackRow
 import com.zenn889.putar.ui.WelcomeScreen
 import com.zenn889.putar.ui.buildArtistItems
 import com.zenn889.putar.ui.buildFolderItems
@@ -711,30 +718,53 @@ fun PlayerApp() {
                             onSortChange = { sortChoice = it }
                         )
                         when (tab) {
-                            LibraryTab.LAGU -> Column(Modifier.weight(1f)) {
-                                if (rootSongs.isNotEmpty()) {
-                                    HeroCard(rootSongs) { playList(rootSongs, 0, true) }
-                                    LibraryList(
-                                        tracks = rootSongs,
-                                        currentMediaId = currentMediaItemUri(controller),
-                                        onPlay = { playList(rootSongs, it, false) },
-                                        onLongClickTrack = { contextTrack = it; showContextMenu = true },
-                                        modifier = Modifier.weight(1f)
+                            LibraryTab.LAGU -> if (rootSongs.isEmpty()) {
+                                SimpleEmpty("Tidak ada lagu cocok")
+                            } else LazyColumn(
+                                modifier = Modifier.weight(1f),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                    top = 4.dp, bottom = 18.dp
+                                )
+                            ) {
+                                item { HeroCard(rootSongs) { playList(rootSongs, 0, true) } }
+                                if (q.isEmpty()) {
+                                    item {
+                                        RecentlyAddedRow(rootSongs) { list, idx ->
+                                            playList(list, idx, false)
+                                        }
+                                    }
+                                }
+                                item {
+                                    Text(
+                                        if (q.isEmpty()) "Semua lagu"
+                                        else "Hasil pencarian · ${rootSongs.size}",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(
+                                            start = 18.dp, end = 18.dp, top = 10.dp, bottom = 2.dp
+                                        )
                                     )
-                                } else {
-                                    SimpleEmpty("Tidak ada lagu cocok")
+                                }
+                                itemsIndexed(rootSongs, key = { _, t -> t.contentUri.toString() }) { index, track ->
+                                    TrackRow(
+                                        track = track,
+                                        isCurrent = track.contentUri.toString() == currentMediaItemUri(controller),
+                                        onClick = { playList(rootSongs, index, false) },
+                                        onLongClick = { contextTrack = track; showContextMenu = true }
+                                    )
                                 }
                             }
                             LibraryTab.ALBUM -> if (rootAlbums.isEmpty()) {
                                 SimpleEmpty("Tidak ada album cocok")
-                            } else LazyColumn(
+                            } else LazyVerticalGrid(
+                                columns = GridCells.Adaptive(minSize = 150.dp),
                                 modifier = Modifier.weight(1f),
                                 contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                    horizontal = 8.dp, vertical = 6.dp
+                                    horizontal = 10.dp, vertical = 6.dp
                                 )
                             ) {
-                                items(rootAlbums, key = { it.albumId }) { album ->
-                                    AlbumRow(album) { selAlbum = album }
+                                gridItems(rootAlbums, key = { it.albumId }) { album ->
+                                    AlbumCard(album) { selAlbum = album }
                                 }
                             }
                             LibraryTab.ARTIS -> if (rootArtists.isEmpty()) {
