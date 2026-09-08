@@ -78,6 +78,11 @@ public class MainActivity extends BridgeActivity {
         WebView wv = bridge.getWebView();
         if (wv == null) return;
         wv.addJavascriptInterface(this, "PutarNative");
+        android.webkit.WebSettings ws = wv.getSettings();
+        ws.setSupportZoom(false);
+        ws.setBuiltInZoomControls(false);
+        ws.setDisplayZoomControls(false);
+        ws.setMixedContentMode(android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
         wv.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onShowFileChooser(WebView webView,

@@ -38,4 +38,8 @@ Untuk Play Store nanti: konfigurasi signing release di
   mesin audio native (proyek terpisah).
 - Aset web dimuat lokal dari dalam APK (offline). Service worker sengaja
   nonaktif di dalam app (guard localhost).
+- WebView dikonfigurasi: mixed content diizinkan (lagu MediaStore diputar via
+  http://127.0.0.1 dari halaman https://localhost) + zoom (pinch/double-tap)
+  dimatikan via settings native, viewport user-scalable=no, dan
+  `touch-action: manipulation` di CSS.
 - Aplikasi memakai id `com.zenn889.putar`, ikon mengikuti artwork "putar".
