@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,6 +50,7 @@ import com.zenn889.putar.ui.theme.MutedInk
 fun SettingsSheet(
     onEqualizer: () -> Unit,
     onSleep: () -> Unit,
+    onPlaylists: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -81,6 +83,12 @@ fun SettingsSheet(
                 subtitle = if (fxOk) "Aktif — terpasang di sesi audio"
                 else "5 pita, preset, bass boost",
                 onClick = onEqualizer
+            )
+            SettingsRow(
+                icon = Icons.Filled.PlaylistPlay,
+                title = "Playlist",
+                subtitle = "Buat & kelola daftar putar",
+                onClick = onPlaylists
             )
             SettingsRow(
                 icon = Icons.Filled.Timer,

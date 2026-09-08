@@ -3,6 +3,8 @@ package com.zenn889.putar.ui
 import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +23,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Equalizer
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -127,17 +131,19 @@ fun AlbumArt(uri: Uri?, size: Dp, shape: Shape = RoundedCornerShape(14.dp), modi
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TrackRow(
     track: Track,
     isCurrent: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -239,7 +245,9 @@ fun NowPlayingSheet(
     onOpenEqualizer: () -> Unit,
     sleepActive: Boolean,
     sleepLabel: String?,
-    onSleep: () -> Unit
+    onSleep: () -> Unit,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
@@ -259,6 +267,14 @@ fun NowPlayingSheet(
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                IconButton(onClick = onToggleFavorite) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Filled.Favorite
+                        else Icons.Filled.FavoriteBorder,
+                        contentDescription = if (isFavorite) "Hapus favorit" else "Favorit",
+                        tint = if (isFavorite) Coral else FaintInk
+                    )
+                }
                 if (sleepLabel != null) {
                     Text(
                         text = sleepLabel,
@@ -389,6 +405,7 @@ fun LibraryList(
     tracks: List<Track>,
     currentMediaId: String?,
     onPlay: (index: Int) -> Unit,
+    onLongClickTrack: ((Track) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     LazyColumn(
@@ -401,7 +418,8 @@ fun LibraryList(
             TrackRow(
                 track = track,
                 isCurrent = track.contentUri.toString() == currentMediaId,
-                onClick = { onPlay(index) }
+                onClick = { onPlay(index) },
+                onLongClick = onLongClickTrack?.let { { it(track) } }
             )
         }
     }

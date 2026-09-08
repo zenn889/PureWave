@@ -11,6 +11,11 @@ akun, tanpa iklan.**
   memutar seluruh isinya.
 - **Auto-resume**: lagu terakhir + posisinya + antrian diingat; saat app
   dibuka lagi tinggal tekan play untuk melanjutkan.
+- **Menu konteks** (tekan lama pada lagu): putar sekarang / berikutnya,
+  tambah ke antrian, tandai favorit, tambah ke playlist.
+- **Favorit**: tab Favorit + tombol hati di layar pemutar penuh.
+- **Playlist**: buat & kelola (dari Setelan), tambah lewat menu konteks,
+  hapus lagu dari playlist, putar langsung — tersimpan permanen.
 - **Pencarian** di setiap tab (lagu/album/artis/folder).
 - **Album art asli** dari metadata file (Coil).
 - **Pemutar sesungguhnya (Media3/ExoPlayer)**: play/pause, next/prev, seek,

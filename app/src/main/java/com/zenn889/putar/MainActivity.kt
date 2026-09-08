@@ -72,9 +72,13 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.zenn889.putar.data.Album
+import com.zenn889.putar.data.FavStore
 import com.zenn889.putar.data.MusicRepository
+import com.zenn889.putar.data.Playlist
+import com.zenn889.putar.data.PlaylistStore
 import com.zenn889.putar.data.SessionStore
 import com.zenn889.putar.data.Track
+import com.zenn889.putar.ui.AddToPlaylistSheet
 import com.zenn889.putar.ui.AlbumRow
 import com.zenn889.putar.ui.ArtistRow
 import com.zenn889.putar.ui.BackBar
@@ -85,12 +89,15 @@ import com.zenn889.putar.ui.LibraryTab
 import com.zenn889.putar.ui.LibraryTabBar
 import com.zenn889.putar.ui.MiniPlayer
 import com.zenn889.putar.ui.NowPlayingSheet
+import com.zenn889.putar.ui.PlaylistBrowserSheet
 import com.zenn889.putar.ui.PlayerMirror
 import com.zenn889.putar.ui.SettingsSheet
 import com.zenn889.putar.ui.SimpleEmpty
+import com.zenn889.putar.ui.TrackContextSheet
 import com.zenn889.putar.ui.buildArtistItems
 import com.zenn889.putar.ui.buildFolderItems
 import com.zenn889.putar.ui.fmtMs
+import com.zenn889.putar.ui.toast
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.FaintInk
 import com.zenn889.putar.ui.theme.MutedInk
@@ -241,6 +248,16 @@ fun PlayerApp() {
     var loading by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var tab by remember { mutableStateOf(LibraryTab.LAGU) }
+    var favUris by remember { mutableStateOf(FavStore.load(context)) }
+    var playlists by remember { mutableStateOf(PlaylistStore.list(context)) }
+
+    // menu konteks (tekan lama), tambah-ke-playlist, kelola playlist
+    var contextTrack by remember { mutableStateOf<Track?>(null) }
+    var showContextMenu by remember { mutableStateOf(false) }
+    var showAddToPlaylist by remember { mutableStateOf(false) }
+    var showPlaylistBrowser by remember { mutableStateOf(false) }
+
+    fun reloadPlaylists() { playlists = PlaylistStore.list(context) }
 
     // detail yang sedang dibuka (album/artis/folder)
     var selAlbum by remember { mutableStateOf<Album?>(null) }
@@ -303,6 +320,16 @@ fun PlayerApp() {
             it.name.contains(q, ignoreCase = true) || it.path.contains(q, ignoreCase = true)
         }
     }
+    val favTracks = remember(tracks, favUris) {
+        tracks.filter { favUris.contains(it.contentUri.toString()) }
+    }
+    val favQueryTracks = remember(favTracks, q) {
+        if (q.isEmpty()) favTracks
+        else favTracks.filter {
+            it.title.contains(q, ignoreCase = true) ||
+                it.displayArtist.contains(q, ignoreCase = true)
+        }
+    }
 
     // daftar detail
     val detailSongs = when {
@@ -342,6 +369,72 @@ fun PlayerApp() {
             pendingResumeMs = -1L
         }
         c.play()
+    }
+
+    // --- aksi lagu (favorit / antrian / playlist) ---
+    fun playNextOf(track: Track) {
+        val c = controller
+        if (c == null || c.playbackState == Player.STATE_IDLE || c.mediaItemCount == 0) {
+            playList(listOf(track), 0, false)
+            return
+        }
+        runCatching { c.addMediaItem(c.currentMediaItemIndex + 1, track.toMediaItem()) }
+        toast(context, "Berikutnya: ${track.title}")
+    }
+
+    fun addToQueue(track: Track) {
+        val c = controller
+        if (c == null || c.playbackState == Player.STATE_IDLE || c.mediaItemCount == 0) {
+            playList(listOf(track), 0, false)
+            return
+        }
+        runCatching { c.addMediaItem(track.toMediaItem()) }
+        toast(context, "Ditambahkan ke antrian")
+    }
+
+    fun toggleFav(uri: String) {
+        val nowFav = FavStore.toggle(context, uri)
+        favUris = FavStore.load(context)
+        toast(context, if (nowFav) "Ditandai favorit" else "Dihapus dari favorit")
+    }
+
+    fun pickPlaylist(name: String) {
+        contextTrack?.let { PlaylistStore.addTrack(context, name, it.contentUri.toString()) }
+        reloadPlaylists()
+        contextTrack = null
+        showAddToPlaylist = false
+        toast(context, "Ditambahkan ke \"$name\"")
+    }
+
+    fun createPlaylistWithContextTrack(name: String) {
+        val tr = contextTrack
+        val ok = PlaylistStore.create(context, name, tr?.contentUri?.toString())
+        reloadPlaylists()
+        contextTrack = null
+        showAddToPlaylist = false
+        toast(context, if (ok) "Playlist \"$name\" dibuat" else "Nama playlist sudah dipakai")
+    }
+
+    fun playlistPlay(name: String) {
+        val pl = playlists.firstOrNull { it.name == name } ?: return
+        val songs = pl.uris.mapNotNull { songsByUri[it] }
+        if (songs.isEmpty()) {
+            toast(context, "Playlist kosong atau lagunya sudah tidak ada")
+            return
+        }
+        playList(songs, 0, false)
+        showPlaylistBrowser = false
+    }
+
+    fun playlistDelete(name: String) {
+        PlaylistStore.delete(context, name)
+        reloadPlaylists()
+        toast(context, "Playlist \"$name\" dihapus")
+    }
+
+    fun playlistRemoveTrack(name: String, uri: String) {
+        PlaylistStore.removeTrack(context, name, uri)
+        reloadPlaylists()
     }
 
     // auto-resume saat pustaka & controller siap
@@ -442,6 +535,7 @@ fun PlayerApp() {
                                     tracks = detailSongs,
                                     currentMediaId = currentMediaItemUri(controller),
                                     onPlay = { playList(detailSongs, it, false) },
+                                    onLongClickTrack = { contextTrack = it; showContextMenu = true },
                                     modifier = Modifier.weight(1f)
                                 )
                             }
@@ -455,6 +549,7 @@ fun PlayerApp() {
                                     tracks = detailSongs,
                                     currentMediaId = currentMediaItemUri(controller),
                                     onPlay = { playList(detailSongs, it, false) },
+                                    onLongClickTrack = { contextTrack = it; showContextMenu = true },
                                     modifier = Modifier.weight(1f)
                                 )
                             }
@@ -471,6 +566,7 @@ fun PlayerApp() {
                                     tracks = detailSongs,
                                     currentMediaId = currentMediaItemUri(controller),
                                     onPlay = { playList(detailSongs, it, false) },
+                                    onLongClickTrack = { contextTrack = it; showContextMenu = true },
                                     modifier = Modifier.weight(1f)
                                 )
                             }
@@ -484,6 +580,7 @@ fun PlayerApp() {
                             rootAlbums = rootAlbums.size,
                             rootArtists = rootArtists.size,
                             rootFolders = rootFolders.size,
+                            rootFavs = favQueryTracks.size,
                             query = query,
                             onQueryChange = {
                                 query = it
@@ -505,6 +602,7 @@ fun PlayerApp() {
                                 tracks = rootSongs,
                                 currentMediaId = currentMediaItemUri(controller),
                                 onPlay = { playList(rootSongs, it, false) },
+                                onLongClickTrack = { contextTrack = it; showContextMenu = true },
                                 modifier = Modifier.weight(1f)
                             )
                             LibraryTab.ALBUM -> if (rootAlbums.isEmpty()) {
@@ -543,6 +641,19 @@ fun PlayerApp() {
                                     FolderRow(item) { selFolder = item.key }
                                 }
                             }
+                            LibraryTab.FAVORIT -> if (favQueryTracks.isEmpty()) {
+                                SimpleEmpty(
+                                    if (favTracks.isEmpty())
+                                        "Belum ada favorit — tekan lama sebuah lagu lalu pilih Favorit."
+                                    else "Tidak ada favorit cocok"
+                                )
+                            } else LibraryList(
+                                tracks = favQueryTracks,
+                                currentMediaId = currentMediaItemUri(controller),
+                                onPlay = { playList(favQueryTracks, it, false) },
+                                onLongClickTrack = { contextTrack = it; showContextMenu = true },
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
                 }
@@ -576,8 +687,12 @@ fun PlayerApp() {
             onOpenEqualizer = { showEq = true },
             sleepActive = sleepUntil > 0L,
             sleepLabel = if (sleepUntil > 0L) "Sleep ${fmtMs(sleepLeftMs)}" else null,
-            onSleep = { showSleepDialog = true }
-        )
+            onSleep = { showSleepDialog = true },
+            isFavorite = (currentMediaItemUri(controller) ?: "") in favUris,
+            onToggleFavorite = {
+                currentMediaItemUri(controller)?.let { toggleFav(it) }
+            }
+            )
     }
 
     if (showEq) {
@@ -594,7 +709,71 @@ fun PlayerApp() {
                 showSettings = false
                 showSleepDialog = true
             },
+            onPlaylists = {
+                showSettings = false
+                showPlaylistBrowser = true
+            },
             onDismiss = { showSettings = false }
+        )
+    }
+
+    if (showContextMenu && contextTrack != null) {
+        val tr = contextTrack!!
+        TrackContextSheet(
+            track = tr,
+            isFavorite = tr.contentUri.toString() in favUris,
+            onPlayNow = {
+                playList(listOf(tr), 0, false)
+                contextTrack = null
+            },
+            onPlayNext = {
+                playNextOf(tr)
+                contextTrack = null
+            },
+            onAddQueue = {
+                addToQueue(tr)
+                contextTrack = null
+            },
+            onToggleFavorite = {
+                toggleFav(tr.contentUri.toString())
+                contextTrack = null
+            },
+            onAddToPlaylist = {
+                showContextMenu = false
+                showAddToPlaylist = true
+            },
+            onDismiss = { contextTrack = null }
+        )
+    }
+
+    if (showAddToPlaylist) {
+        AddToPlaylistSheet(
+            playlists = playlists,
+            onCreate = ::createPlaylistWithContextTrack,
+            onPick = ::pickPlaylist,
+            onDismiss = {
+                showAddToPlaylist = false
+                contextTrack = null
+            }
+        )
+    }
+
+    if (showPlaylistBrowser) {
+        PlaylistBrowserSheet(
+            playlists = playlists,
+            tracks = tracks,
+            onCreate = { name ->
+                if (PlaylistStore.create(context, name)) {
+                    reloadPlaylists()
+                    toast(context, "Playlist \"$name\" dibuat")
+                } else {
+                    toast(context, "Nama playlist sudah dipakai")
+                }
+            },
+            onDelete = ::playlistDelete,
+            onPlay = ::playlistPlay,
+            onRemoveTrack = ::playlistRemoveTrack,
+            onDismiss = { showPlaylistBrowser = false }
         )
     }
 
@@ -625,6 +804,7 @@ private fun LibraryHeader(
     rootAlbums: Int,
     rootArtists: Int,
     rootFolders: Int,
+    rootFavs: Int,
     query: String,
     onQueryChange: (String) -> Unit,
     onTabSelect: (LibraryTab) -> Unit,
@@ -718,6 +898,8 @@ private fun LibraryHeader(
                 if (query.isBlank()) "$rootArtists artis" else "$rootArtists artis cocok"
             LibraryTab.FOLDER ->
                 if (query.isBlank()) "$rootFolders folder" else "$rootFolders folder cocok"
+            LibraryTab.FAVORIT ->
+                if (query.isBlank()) "$rootFavs favorit" else "$rootFavs favorit cocok"
         }
         Text(
             info,

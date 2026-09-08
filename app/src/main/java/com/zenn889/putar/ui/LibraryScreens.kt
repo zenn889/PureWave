@@ -44,7 +44,8 @@ enum class LibraryTab(val label: String) {
     LAGU("Lagu"),
     ALBUM("Album"),
     ARTIS("Artis"),
-    FOLDER("Folder")
+    FOLDER("Folder"),
+    FAVORIT("Favorit")
 }
 
 /* ---------- util pengelompokan ---------- */
