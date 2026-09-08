@@ -14,6 +14,7 @@ server, tidak ada database.
 - Shortcut keyboard: Spasi play/jeda · ←/→ lompat 5 dtk · ↑/↓ volume · M bisu ·
   S acak · R ulangi · N lagu berikut · P lagu sebelumnya
 - Media Session API (tombol media di keyboard/OS/browser ikut berfungsi)
+- PWA: bisa di-install sebagai aplikasi di HP/desktop, jalan fullscreen & offline (setelah dibuka sekali)
 - Playlist URL tersimpan otomatis di localStorage; lagu lokal berlaku per sesi
 - 3 lagu demo (SoundHelix) untuk mencoba langsung — butuh internet
 
@@ -22,7 +23,20 @@ server, tidak ada database.
     index.html      halaman utama
     styles.css      semua styling
     app.js          semua logika pemutar
+    sw.js           service worker (offline & install PWA)
+    manifest.webmanifest   metadata aplikasi PWA
+    icons/          ikon aplikasi (192/512/maskable/apple-touch)
     vercel.json     konfigurasi deploy (opsional)
+
+## Install sebagai aplikasi (PWA)
+
+Setelah di-deploy (butuh HTTPS — Vercel otomatis):
+- Android/Chrome: buka situsnya → menu ⋮ → "Install app" / "Tambahkan ke layar utama".
+- iPhone/Safari: buka situsnya → tombol Share → "Add to Home Screen".
+- Desktop (Chrome/Edge): ikon install di kanan address bar.
+
+Aplikasi terbuka fullscreen tanpa address bar dan tetap bisa dipakai offline
+(aset aplikasi di-cache service worker; stream lagu tetap butuh internet).
 
 ## Cara deploy ke Vercel
 

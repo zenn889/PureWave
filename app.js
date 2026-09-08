@@ -662,3 +662,13 @@ if (state.tracks.length === 0) setCurrent(-1);
 sizeEQ();
 drawEQ();
 window.addEventListener('resize', sizeEQ);
+
+/* daftarkan service worker (PWA) — hanya saat di-host via http(s), bukan file:// atau localhost dev */
+if ('serviceWorker' in navigator && /^https:$/.test(location.protocol)) {
+  const host = location.hostname;
+  if (host !== 'localhost' && host !== '127.0.0.1') {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+}
