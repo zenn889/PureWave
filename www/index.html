@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0e0f11">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -103,6 +103,17 @@
       <h2>Playlist</h2>
       <span class="chip" id="countChip">0 lagu</span>
     </div>
+
+    <button class="scan-bar" id="scanBar" type="button" hidden>
+      <span class="scan-ic" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M12 18h.01"/></svg>
+      </span>
+      <span class="scan-txt">
+        <strong id="scanTitle">Pindai musik di HP ini</strong>
+        <em id="scanSub">Tambah semua audio di penyimpanan ke playlist</em>
+      </span>
+      <span class="scan-state" id="scanState" hidden></span>
+    </button>
 
     <ul class="queue" id="queue" aria-live="polite"></ul>
 

@@ -1,27 +1,42 @@
 package com.zenn889.putar;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
+import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.BridgeActivity;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * putar — music player.
- * Bridge tambahan agar <input type="file" accept="audio/*"> membuka picker
- * file asli Android (WebView bawaan Capacitor tidak menyediakannya).
+ * 1. Bridge file picker asli Android utk <input type="file" accept="audio/*">.
+ * 2. Bridge "PutarNative.scan()" — pindai seluruh audio MediaStore lalu kirim
+ *    hasilnya ke window.__putarMusicScan(json). Pemutaran lewat MusicServer
+ *    lokal (http://127.0.0.1:port/s?id=..&m=..).
  */
 public class MainActivity extends BridgeActivity {
 
     private ValueCallback<Uri[]> fileCallback = null;
+    private final AtomicBoolean scanning = new AtomicBoolean(false);
 
     private final ActivityResultLauncher<Intent> pickAudio =
         registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
@@ -45,12 +60,24 @@ public class MainActivity extends BridgeActivity {
             }
         });
 
+    private final ActivityResultLauncher<String> permissionLauncher =
+        registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
+            if (granted) {
+                runScanAsync();
+            } else {
+                scanning.set(false);
+                notifyJs("{ok:false,error:\"permission\"}");
+            }
+        });
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        MusicServer.get(this);
         if (bridge == null) return;
         WebView wv = bridge.getWebView();
         if (wv == null) return;
+        wv.addJavascriptInterface(this, "PutarNative");
         wv.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onShowFileChooser(WebView webView,
@@ -66,6 +93,83 @@ public class MainActivity extends BridgeActivity {
                 intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
                 pickAudio.launch(intent);
                 return true;
+            }
+        });
+    }
+
+    /* ============ dipanggil JS: window.PutarNative.scan() ============ */
+    @JavascriptInterface
+    public void scan() {
+        if (!scanning.compareAndSet(false, true)) {
+            notifyJs("{ok:false,error:\"busy\"}");
+            return;
+        }
+        String perm = Build.VERSION.SDK_INT >= 33
+                ? Manifest.permission.READ_MEDIA_AUDIO
+                : Manifest.permission.READ_EXTERNAL_STORAGE;
+        if (ContextCompat.checkSelfPermission(this, perm) != PackageManager.PERMISSION_GRANTED) {
+            runOnUiThread(() -> permissionLauncher.launch(perm));
+        } else {
+            runScanAsync();
+        }
+    }
+
+    /** Bisa dijalankan dari thread mana pun; query MediaStore di thread ini (bukan UI). */
+    private void runScanAsync() {
+        new Thread(() -> {
+            try {
+                JSONArray songs = new JSONArray();
+                Uri collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+                String[] projection = {
+                    MediaStore.Audio.Media._ID,
+                    MediaStore.Audio.Media.TITLE,
+                    MediaStore.Audio.Media.ARTIST,
+                    MediaStore.Audio.Media.DURATION,
+                    MediaStore.Audio.Media.MIME_TYPE
+                };
+                String selection = MediaStore.Audio.Media.DURATION + " > 3000"; // buang bunyi < 3 dtk
+                String order = MediaStore.Audio.Media.TITLE + " COLLATE NOCASE ASC";
+                try (Cursor c = getContentResolver().query(collection, projection, selection, null, order)) {
+                    if (c != null) {
+                        int iId = c.getColumnIndexOrThrow(MediaStore.Audio.Media._ID);
+                        int iTitle = c.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE);
+                        int iArtist = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST);
+                        int iDur = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION);
+                        int iMime = c.getColumnIndexOrThrow(MediaStore.Audio.Media.MIME_TYPE);
+                        while (c.moveToNext()) {
+                            JSONObject o = new JSONObject();
+                            o.put("i", c.getLong(iId));
+                            o.put("t", c.getString(iTitle) != null ? c.getString(iTitle) : "Tanpa judul");
+                            String artist = c.getString(iArtist);
+                            o.put("a", artist == null || artist.isEmpty() || "<unknown>".equals(artist)
+                                    ? "" : artist);
+                            o.put("d", c.getLong(iDur));
+                            String mime = c.getString(iMime);
+                            o.put("m", mime != null && !mime.isEmpty() ? mime : "audio/mpeg");
+                            songs.put(o);
+                        }
+                    }
+                }
+                JSONObject out = new JSONObject();
+                out.put("ok", true);
+                out.put("port", MusicServer.get(this).getPort());
+                out.put("songs", songs);
+                notifyJs(out.toString());
+            } catch (Exception e) {
+                notifyJs("{ok:false,error:\"scan\"}");
+            } finally {
+                scanning.set(false);
+            }
+        }, "putar-scan").start();
+    }
+
+    /** Kirim hasil ke JS (harus dari UI thread). */
+    private void notifyJs(String json) {
+        runOnUiThread(() -> {
+            WebView wv = bridge != null ? bridge.getWebView() : null;
+            if (wv != null) {
+                wv.evaluateJavascript(
+                    "window.__putarMusicScan && window.__putarMusicScan(" + json + ")", null);
             }
         });
     }
