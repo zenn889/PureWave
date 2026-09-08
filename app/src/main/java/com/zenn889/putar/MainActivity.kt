@@ -13,7 +13,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +24,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -70,14 +71,25 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.zenn889.putar.data.Album
 import com.zenn889.putar.data.MusicRepository
+import com.zenn889.putar.data.SessionStore
 import com.zenn889.putar.data.Track
+import com.zenn889.putar.ui.AlbumRow
+import com.zenn889.putar.ui.ArtistRow
+import com.zenn889.putar.ui.BackBar
 import com.zenn889.putar.ui.EqualizerSheet
+import com.zenn889.putar.ui.FolderRow
 import com.zenn889.putar.ui.LibraryList
+import com.zenn889.putar.ui.LibraryTab
+import com.zenn889.putar.ui.LibraryTabBar
 import com.zenn889.putar.ui.MiniPlayer
 import com.zenn889.putar.ui.NowPlayingSheet
 import com.zenn889.putar.ui.PlayerMirror
 import com.zenn889.putar.ui.SettingsSheet
+import com.zenn889.putar.ui.SimpleEmpty
+import com.zenn889.putar.ui.buildArtistItems
+import com.zenn889.putar.ui.buildFolderItems
 import com.zenn889.putar.ui.fmtMs
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.FaintInk
@@ -85,6 +97,7 @@ import com.zenn889.putar.ui.theme.MutedInk
 import com.zenn889.putar.ui.theme.PutarTheme
 import com.zenn889.putar.ui.theme.SurfaceHigh
 import kotlinx.coroutines.delay
+import kotlin.math.abs
 import kotlin.random.Random
 
 class MainActivity : ComponentActivity() {
@@ -144,6 +157,26 @@ private fun Track.toMediaItem(): MediaItem =
         )
         .build()
 
+private fun currentMediaItemUri(c: MediaController?): String? =
+    c?.currentMediaItem?.mediaId
+
+private fun readMirror(player: Player): PlayerMirror {
+    val meta = player.mediaMetadata
+    val has = player.mediaItemCount > 0
+    return PlayerMirror(
+        title = meta.title?.toString() ?: "",
+        artist = meta.artist?.toString() ?: "",
+        artwork = meta.artworkUri,
+        durationMs = player.duration.coerceAtLeast(0L),
+        positionMs = player.currentPosition.coerceAtLeast(0L),
+        playing = player.isPlaying,
+        shuffle = player.shuffleModeEnabled,
+        repeat = player.repeatMode,
+        hasMedia = has,
+        index = player.currentMediaItemIndex
+    )
+}
+
 @Composable
 fun PlayerApp() {
     val context = LocalContext.current.applicationContext
@@ -171,6 +204,15 @@ fun PlayerApp() {
                     )
                 ) {
                     mirror = readMirror(player)
+                    // simpan posisi saat berhenti / lagu berakhir
+                    if (!player.isPlaying && player.playbackState != Player.STATE_IDLE &&
+                        player.mediaItemCount > 0
+                    ) {
+                        SessionStore.savePosition(
+                            context, player.currentMediaItemIndex,
+                            player.currentPosition.coerceAtLeast(0L)
+                        )
+                    }
                 }
             }
         }
@@ -192,20 +234,19 @@ fun PlayerApp() {
         }
     }
 
-    // posisi pemutar tetap segar utk slider
-    LaunchedEffect(mirror.playing) {
-        while (mirror.playing) {
-            delay(400)
-            val c = controller
-            if (c != null) mirror = mirror.copy(positionMs = c.currentPosition.coerceAtLeast(0L))
-        }
-    }
-
-    // --- pustaka, izin, pencarian ---
+    // --- pustaka, izin ---
     var granted by remember { mutableStateOf(context.hasReadPermission()) }
     var tracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var albums by remember { mutableStateOf<List<Album>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
+    var tab by remember { mutableStateOf(LibraryTab.LAGU) }
+
+    // detail yang sedang dibuka (album/artis/folder)
+    var selAlbum by remember { mutableStateOf<Album?>(null) }
+    var selArtist by remember { mutableStateOf<String?>(null) }
+    var selFolder by remember { mutableStateOf<String?>(null) }
+    val inDetail = selAlbum != null || selArtist != null || selFolder != null
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -216,7 +257,10 @@ fun PlayerApp() {
     LaunchedEffect(granted) {
         if (granted) {
             loading = true
-            tracks = repo.loadLibrary()
+            val lib = repo.loadLibrary()
+            val alb = repo.loadAlbums()
+            tracks = lib
+            albums = alb
             loading = false
         }
     }
@@ -229,25 +273,106 @@ fun PlayerApp() {
         permissionLauncher.launch(perms.toTypedArray())
     }
 
-    val shownTracks = remember(tracks, query) {
-        val q = query.trim()
+    // --- daftar per tab (root), dihitung sekali per perubahan ---
+    val songsByUri = remember(tracks) { tracks.associateBy { it.contentUri.toString() } }
+    val artistItems = remember(tracks) { buildArtistItems(tracks) }
+    val folderItems = remember(tracks) { buildFolderItems(tracks) }
+
+    val q = query.trim()
+    val rootSongs = remember(tracks, q) {
         if (q.isEmpty()) tracks
         else tracks.filter {
             it.title.contains(q, ignoreCase = true) ||
                 it.displayArtist.contains(q, ignoreCase = true)
         }
     }
+    val rootAlbums = remember(albums, q) {
+        if (q.isEmpty()) albums
+        else albums.filter {
+            it.title.contains(q, ignoreCase = true) ||
+                it.displayArtist.contains(q, ignoreCase = true)
+        }
+    }
+    val rootArtists = remember(artistItems, q) {
+        if (q.isEmpty()) artistItems
+        else artistItems.filter { it.first.contains(q, ignoreCase = true) }
+    }
+    val rootFolders = remember(folderItems, q) {
+        if (q.isEmpty()) folderItems
+        else folderItems.filter {
+            it.name.contains(q, ignoreCase = true) || it.path.contains(q, ignoreCase = true)
+        }
+    }
 
-    fun playFrom(list: List<Track>, index: Int, shuffled: Boolean) {
+    // daftar detail
+    val detailSongs = when {
+        selAlbum != null -> tracks.filter { it.albumId != null && it.albumId == selAlbum!!.albumId }
+        selArtist != null -> tracks.filter { it.displayArtist == selArtist }
+        selFolder != null -> tracks.filter { it.folder.orEmpty() == selFolder }
+        else -> emptyList()
+    }
+
+    // --- pemutaran ---
+    var pendingResumeMs by remember { mutableLongStateOf(-1L) }
+    var restoredApplied by remember { mutableStateOf(false) }
+    var lastSavedPos by remember { mutableLongStateOf(-1L) }
+
+    fun playList(list: List<Track>, index: Int, shuffled: Boolean) {
         if (list.isEmpty()) return
         val c = controller ?: return
         val items = list.map { it.toMediaItem() }
-        val start = if (shuffled) Random.nextInt(items.size) else index
+        val start = if (shuffled) Random.nextInt(items.size) else index.coerceIn(0, items.size - 1)
+        pendingResumeMs = -1L
         c.shuffleModeEnabled = false
         c.setMediaItems(items, start, 0L)
         if (shuffled) c.shuffleModeEnabled = true
         c.prepare()
         c.play()
+        SessionStore.saveQueue(
+            context, items.map { it.mediaId }, start, 0L
+        )
+    }
+
+    fun resumePlay() {
+        val c = controller ?: return
+        if (c.mediaItemCount == 0) return
+        if (c.playbackState == Player.STATE_IDLE) c.prepare()
+        if (pendingResumeMs >= 0L) {
+            runCatching { c.seekTo(c.currentMediaItemIndex, pendingResumeMs) }
+            pendingResumeMs = -1L
+        }
+        c.play()
+    }
+
+    // auto-resume saat pustaka & controller siap
+    LaunchedEffect(granted, controller != null, tracks.isEmpty().not(), restoredApplied) {
+        if (granted && controller != null && tracks.isNotEmpty() && !restoredApplied) {
+            restoredApplied = true
+            val sess = SessionStore.load(context) ?: return@LaunchedEffect
+            val matched = sess.first.mapNotNull { songsByUri[it] }
+            if (matched.isNotEmpty()) {
+                val idx = sess.second.coerceIn(0, matched.size - 1)
+                controller?.setMediaItems(matched.map { it.toMediaItem() }, idx, 0L)
+                pendingResumeMs = sess.third
+                controller?.let { mirror = readMirror(it) }
+            }
+        }
+    }
+
+    // posisi slider + simpan progres berkala
+    LaunchedEffect(mirror.playing) {
+        while (mirror.playing) {
+            delay(400)
+            val c = controller
+            if (c != null) {
+                mirror = mirror.copy(positionMs = c.currentPosition.coerceAtLeast(0L))
+                val pos = c.currentPosition.coerceAtLeast(0L)
+                if (abs(pos - lastSavedPos) > 4000L) {
+                    lastSavedPos = pos
+                    SessionStore.savePosition(context, c.currentMediaItemIndex, pos)
+                }
+            }
+        }
     }
 
     // --- sleep timer ---
@@ -281,7 +406,11 @@ fun PlayerApp() {
                 mirror = mirror,
                 onClick = { if (mirror.hasMedia) showFullPlayer = true },
                 onPlayPause = {
-                    controller?.let { c -> if (mirror.playing) c.pause() else c.play() }
+                    val c = controller ?: return@MiniPlayer
+                    if (mirror.playing) c.pause()
+                    else if (c.mediaItemCount > 0 &&
+                        (c.playbackState == Player.STATE_IDLE || c.currentMediaItem != null)
+                    ) resumePlay()
                 },
                 onNext = { controller?.seekToNextMediaItem() }
             )
@@ -296,31 +425,125 @@ fun PlayerApp() {
                 )
                 tracks.isEmpty() -> EmptyLibraryScreen()
                 else -> Column(Modifier.fillMaxSize()) {
-                    LibraryHeader(
-                        context = context,
-                        shownCount = shownTracks.size,
-                        totalCount = tracks.size,
-                        query = query,
-                        onQueryChange = { query = it },
-                        onOpenSettings = { showSettings = true },
-                        onPlayAllShuffled = { playFrom(shownTracks, 0, shuffled = true) }
-                    )
-                    if (shownTracks.isEmpty()) {
-                        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            Text(
-                                "Tidak ada lagu cocok dengan \"$query\"",
-                                color = MutedInk,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(24.dp)
-                            )
+                    if (inDetail) {
+                        val back = {
+                            selAlbum = null
+                            selArtist = null
+                            selFolder = null
+                        }
+                        when {
+                            selAlbum != null -> {
+                                BackBar(
+                                    selAlbum!!.title,
+                                    "${selAlbum!!.displayArtist} · ${selAlbum!!.songCount} lagu",
+                                    onBack = back
+                                )
+                                LibraryList(
+                                    tracks = detailSongs,
+                                    currentMediaId = currentMediaItemUri(controller),
+                                    onPlay = { playList(detailSongs, it, false) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            selArtist != null -> {
+                                BackBar(
+                                    selArtist!!,
+                                    "${detailSongs.size} lagu",
+                                    onBack = back
+                                )
+                                LibraryList(
+                                    tracks = detailSongs,
+                                    currentMediaId = currentMediaItemUri(controller),
+                                    onPlay = { playList(detailSongs, it, false) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            else -> {
+                                val f = folderItems.firstOrNull { it.key == selFolder }
+                                BackBar(
+                                    f?.name ?: "Folder",
+                                    if (f != null)
+                                        (f.path.ifBlank { "Penyimpanan utama" } + " · ${f.songCount} lagu")
+                                    else "${detailSongs.size} lagu",
+                                    onBack = back
+                                )
+                                LibraryList(
+                                    tracks = detailSongs,
+                                    currentMediaId = currentMediaItemUri(controller),
+                                    onPlay = { playList(detailSongs, it, false) },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     } else {
-                        LibraryList(
-                            tracks = shownTracks,
-                            currentMediaId = currentMediaItemUri(controller),
-                            onPlay = { playFrom(shownTracks, it, shuffled = false) },
-                            modifier = Modifier.weight(1f)
+                        LibraryHeader(
+                            context = context,
+                            tab = tab,
+                            totalSongs = tracks.size,
+                            rootSongs = rootSongs.size,
+                            rootAlbums = rootAlbums.size,
+                            rootArtists = rootArtists.size,
+                            rootFolders = rootFolders.size,
+                            query = query,
+                            onQueryChange = {
+                                query = it
+                                if (inDetail) {
+                                    selAlbum = null; selArtist = null; selFolder = null
+                                }
+                            },
+                            onTabSelect = {
+                                if (it != tab) query = ""
+                                tab = it
+                            },
+                            onOpenSettings = { showSettings = true },
+                            onPlayAllShuffled = { playList(rootSongs, 0, shuffled = true) }
                         )
+                        when (tab) {
+                            LibraryTab.LAGU -> if (rootSongs.isEmpty()) {
+                                SimpleEmpty("Tidak ada lagu cocok")
+                            } else LibraryList(
+                                tracks = rootSongs,
+                                currentMediaId = currentMediaItemUri(controller),
+                                onPlay = { playList(rootSongs, it, false) },
+                                modifier = Modifier.weight(1f)
+                            )
+                            LibraryTab.ALBUM -> if (rootAlbums.isEmpty()) {
+                                SimpleEmpty("Tidak ada album cocok")
+                            } else LazyColumn(
+                                modifier = Modifier.weight(1f),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                    horizontal = 8.dp, vertical = 6.dp
+                                )
+                            ) {
+                                items(rootAlbums, key = { it.albumId }) { album ->
+                                    AlbumRow(album) { selAlbum = album }
+                                }
+                            }
+                            LibraryTab.ARTIS -> if (rootArtists.isEmpty()) {
+                                SimpleEmpty("Tidak ada artis cocok")
+                            } else LazyColumn(
+                                modifier = Modifier.weight(1f),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                    horizontal = 8.dp, vertical = 6.dp
+                                )
+                            ) {
+                                items(rootArtists, key = { it.first }) { (name, count) ->
+                                    ArtistRow(name, count) { selArtist = name }
+                                }
+                            }
+                            LibraryTab.FOLDER -> if (rootFolders.isEmpty()) {
+                                SimpleEmpty("Tidak ada folder cocok")
+                            } else LazyColumn(
+                                modifier = Modifier.weight(1f),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                    horizontal = 8.dp, vertical = 6.dp
+                                )
+                            ) {
+                                items(rootFolders, key = { it.path }) { item ->
+                                    FolderRow(item) { selFolder = item.key }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -335,7 +558,10 @@ fun PlayerApp() {
             onToggleShuffle = { controller?.shuffleModeEnabled = !(mirror.shuffle) },
             onPrev = { controller?.seekToPreviousMediaItem() },
             onPlayPause = {
-                controller?.let { c -> if (mirror.playing) c.pause() else c.play() }
+                controller?.let { c ->
+                    if (mirror.playing) c.pause()
+                    else if (c.mediaItemCount > 0) resumePlay()
+                }
             },
             onNext = { controller?.seekToNextMediaItem() },
             onToggleRepeat = {
@@ -390,47 +616,29 @@ fun PlayerApp() {
     }
 }
 
-private fun currentMediaItemUri(c: MediaController?): String? =
-    c?.currentMediaItem?.mediaId
-
-private fun readMirror(player: Player): PlayerMirror {
-    val meta = player.mediaMetadata
-    val has = player.mediaItemCount > 0
-    return PlayerMirror(
-        title = meta.title?.toString() ?: "",
-        artist = meta.artist?.toString() ?: "",
-        artwork = meta.artworkUri,
-        durationMs = player.duration.coerceAtLeast(0L),
-        positionMs = player.currentPosition.coerceAtLeast(0L),
-        playing = player.isPlaying,
-        shuffle = player.shuffleModeEnabled,
-        repeat = player.repeatMode,
-        hasMedia = has,
-        index = player.currentMediaItemIndex
-    )
-}
-
 @Composable
 private fun LibraryHeader(
     context: Context,
-    shownCount: Int,
-    totalCount: Int,
+    tab: LibraryTab,
+    totalSongs: Int,
+    rootSongs: Int,
+    rootAlbums: Int,
+    rootArtists: Int,
+    rootFolders: Int,
     query: String,
     onQueryChange: (String) -> Unit,
+    onTabSelect: (LibraryTab) -> Unit,
     onOpenSettings: () -> Unit,
     onPlayAllShuffled: () -> Unit
 ) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // logo + identitas (digambar dengan Compose — aman, bukan resource launcher)
             Box(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(CircleShape)
                     .background(
-                        Brush.verticalGradient(
-                            listOf(Color(0xFFFF744A), Color(0xFFB22C12))
-                        )
+                        Brush.verticalGradient(listOf(Color(0xFFFF744A), Color(0xFFB22C12)))
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -456,32 +664,28 @@ private fun LibraryHeader(
                 )
             }
             IconButton(onClick = onOpenSettings) {
-                Icon(
-                    Icons.Filled.Settings,
-                    contentDescription = "Setelan",
-                    tint = MutedInk
-                )
+                Icon(Icons.Filled.Settings, contentDescription = "Setelan", tint = MutedInk)
             }
             Spacer(Modifier.width(2.dp))
-            FilledTonalButton(onClick = onPlayAllShuffled) {
-                Icon(
-                    Icons.Filled.Shuffle, contentDescription = null,
-                    tint = Coral, modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(6.dp))
-                Text("Acak semua", color = MaterialTheme.colorScheme.onSurface)
+            if (tab == LibraryTab.LAGU) {
+                FilledTonalButton(onClick = onPlayAllShuffled) {
+                    Icon(
+                        Icons.Filled.Shuffle, contentDescription = null,
+                        tint = Coral, modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("Acak semua", color = MaterialTheme.colorScheme.onSurface)
+                }
             }
         }
 
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(8.dp))
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
             singleLine = true,
-            placeholder = { Text("Cari judul atau artis…", color = FaintInk) },
-            leadingIcon = {
-                Icon(Icons.Filled.Search, contentDescription = null, tint = MutedInk)
-            },
+            placeholder = { Text("Cari…", color = FaintInk) },
+            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = MutedInk) },
             trailingIcon = {
                 if (query.isNotEmpty()) {
                     IconButton(onClick = { onQueryChange("") }) {
@@ -502,13 +706,21 @@ private fun LibraryHeader(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(Modifier.height(8.dp))
+        LibraryTabBar(current = tab, onSelect = onTabSelect)
+
+        Spacer(Modifier.height(6.dp))
+        val info = when (tab) {
+            LibraryTab.LAGU ->
+                if (query.isBlank()) "$totalSongs lagu di perangkat" else "$rootSongs dari $totalSongs lagu"
+            LibraryTab.ALBUM ->
+                if (query.isBlank()) "${rootAlbums} album" else "$rootAlbums album cocok"
+            LibraryTab.ARTIS ->
+                if (query.isBlank()) "$rootArtists artis" else "$rootArtists artis cocok"
+            LibraryTab.FOLDER ->
+                if (query.isBlank()) "$rootFolders folder" else "$rootFolders folder cocok"
+        }
         Text(
-            text = if (query.isBlank()) {
-                if (totalCount == 1) "1 lagu di perangkat" else "$totalCount lagu di perangkat"
-            } else {
-                "$shownCount dari $totalCount lagu"
-            },
+            info,
             style = MaterialTheme.typography.bodySmall,
             color = MutedInk,
             modifier = Modifier.padding(start = 4.dp)

@@ -3,9 +3,11 @@ package com.zenn889.putar.data
 import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 /** Akses pustaka audio perangkat (MediaStore) — murni offline. */
 class MusicRepository(private val context: Context) {
@@ -13,13 +15,15 @@ class MusicRepository(private val context: Context) {
     suspend fun loadLibrary(): List<Track> = withContext(Dispatchers.IO) {
         val result = mutableListOf<Track>()
         val collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        val projection = arrayOf(
-            MediaStore.Audio.Media._ID,
-            MediaStore.Audio.Media.TITLE,
-            MediaStore.Audio.Media.ARTIST,
-            MediaStore.Audio.Media.DURATION,
-            MediaStore.Audio.Media.ALBUM_ID
-        )
+        val useRelative = Build.VERSION.SDK_INT >= 29
+        val projection = buildList {
+            add(MediaStore.Audio.Media._ID)
+            add(MediaStore.Audio.Media.TITLE)
+            add(MediaStore.Audio.Media.ARTIST)
+            add(MediaStore.Audio.Media.DURATION)
+            add(MediaStore.Audio.Media.ALBUM_ID)
+            add(if (useRelative) MediaStore.MediaColumns.RELATIVE_PATH else MediaStore.MediaColumns.DATA)
+        }.toTypedArray()
         val selection = "${MediaStore.Audio.Media.DURATION} > 3000" // buang bunyi < 3 detik
         val order = "${MediaStore.Audio.Media.TITLE} COLLATE NOCASE ASC"
         try {
@@ -29,9 +33,25 @@ class MusicRepository(private val context: Context) {
                 val iArtist = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
                 val iDur = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
                 val iAlbum = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
+                val iFolder = c.getColumnIndexOrThrow(
+                    if (useRelative) MediaStore.MediaColumns.RELATIVE_PATH
+                    else MediaStore.MediaColumns.DATA
+                )
                 while (c.moveToNext()) {
                     val id = c.getLong(iId)
                     val albumId = if (c.isNull(iAlbum)) null else c.getLong(iAlbum)
+                    val rawFolder = c.getString(iFolder)
+                    val folder = when {
+                        useRelative -> rawFolder?.trim('/')?.takeIf { it.isNotEmpty() }
+                        rawFolder.isNullOrEmpty() -> null
+                        else -> File(rawFolder).parent?.let { p ->
+                            // "/storage/emulated/0/Music/X" -> "Music/X"
+                            p.removePrefix("/storage/emulated/0/")
+                                .removePrefix("/sdcard/")
+                                .trim('/')
+                                .takeIf { it.isNotEmpty() }
+                        }
+                    }
                     result.add(
                         Track(
                             mediaId = id,
@@ -41,13 +61,49 @@ class MusicRepository(private val context: Context) {
                                 if (it.equals("<unknown>", true)) "" else it
                             },
                             durationMs = c.getLong(iDur),
-                            albumId = albumId
+                            albumId = albumId,
+                            folder = folder
                         )
                     )
                 }
             }
         } catch (_: Exception) {
             // pustaka kosong / provider bermasalah
+        }
+        result
+    }
+
+    suspend fun loadAlbums(): List<Album> = withContext(Dispatchers.IO) {
+        val result = mutableListOf<Album>()
+        val collection = MediaStore.Audio.Albums.EXTERNAL_CONTENT_URI
+        val projection = arrayOf(
+            MediaStore.Audio.Albums._ID,
+            MediaStore.Audio.Albums.ALBUM,
+            MediaStore.Audio.Albums.ARTIST,
+            MediaStore.Audio.Albums.NUMBER_OF_SONGS
+        )
+        val order = "${MediaStore.Audio.Albums.ALBUM} COLLATE NOCASE ASC"
+        try {
+            context.contentResolver.query(collection, projection, null, null, order)?.use { c ->
+                val iId = c.getColumnIndexOrThrow(MediaStore.Audio.Albums._ID)
+                val iTitle = c.getColumnIndexOrThrow(MediaStore.Audio.Albums.ALBUM)
+                val iArtist = c.getColumnIndexOrThrow(MediaStore.Audio.Albums.ARTIST)
+                val iCount = c.getColumnIndexOrThrow(MediaStore.Audio.Albums.NUMBER_OF_SONGS)
+                while (c.moveToNext()) {
+                    val artist = c.getString(iArtist)?.trim().orEmpty()
+                    result.add(
+                        Album(
+                            albumId = c.getLong(iId),
+                            title = c.getString(iTitle)?.ifBlank { "Album Tanpa Judul" }
+                                ?: "Album Tanpa Judul",
+                            artist = if (artist.equals("<unknown>", true)) "" else artist,
+                            songCount = c.getInt(iCount)
+                        )
+                    )
+                }
+            }
+        } catch (_: Exception) {
+            // abaikan
         }
         result
     }

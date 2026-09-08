@@ -6,9 +6,12 @@ akun, tanpa iklan.**
 
 ## Fitur
 
-- **Pustaka otomatis**: semua audio di perangkat (MediaStore) dimuat —
-  judul, artis, durasi, urut abjad. Sekali izin, langsung muncul.
-- **Pencarian** judul/artis di pustaka.
+- **Pustaka terstruktur**: tab Lagu / Album / Artis / Folder — browse per
+  album (artwork asli), artis, atau folder penyimpanan; ketuk untuk
+  memutar seluruh isinya.
+- **Auto-resume**: lagu terakhir + posisinya + antrian diingat; saat app
+  dibuka lagi tinggal tekan play untuk melanjutkan.
+- **Pencarian** di setiap tab (lagu/album/artis/folder).
 - **Album art asli** dari metadata file (Coil).
 - **Pemutar sesungguhnya (Media3/ExoPlayer)**: play/pause, next/prev, seek,
   shuffle, repeat (off/semua/satu), "Acak semua" satu ketukan.
