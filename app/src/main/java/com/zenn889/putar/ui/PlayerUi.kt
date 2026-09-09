@@ -8,6 +8,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
@@ -63,7 +64,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -268,7 +272,7 @@ fun MiniPlayer(
                 .padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AlbumArt(mirror.artwork, size = 46.dp, shape = RoundedCornerShape(10.dp))
+            AlbumArt(mirror.artwork, size = 50.dp, shape = RoundedCornerShape(12.dp))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
@@ -286,12 +290,21 @@ fun MiniPlayer(
                     color = MutedInk
                 )
             }
-            IconButton(onClick = onPlayPause) {
-                Icon(
-                    imageVector = if (mirror.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (mirror.playing) "Jeda" else "Putar",
-                    tint = MaterialTheme.colorScheme.onSurface
-                )
+            Surface(
+                shape = CircleShape,
+                color = if (mirror.playing) Coral else Coral.copy(alpha = 0.85f),
+                modifier = Modifier.size(42.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    IconButton(onClick = onPlayPause, modifier = Modifier.size(42.dp)) {
+                        Icon(
+                            imageVector = if (mirror.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                            contentDescription = if (mirror.playing) "Jeda" else "Putar",
+                            tint = Color(0xFF190902),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
             }
             IconButton(onClick = onNext) {
                 Icon(
@@ -343,6 +356,37 @@ fun NowPlayingSheet(
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surface
     ) {
+        Box(Modifier.fillMaxWidth()) {
+            // ambience ala Spotify/YT Music: artwork buram jadi latar + pendar warna
+            val art = mirror.artwork
+            if (art != null) {
+                val dark = isSystemInDarkTheme()
+                SubcomposeAsyncImage(
+                    model = art,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .scale(1.6f)
+                        .alpha(if (dark) 0.17f else 0.10f)
+                        .blur(if (dark) 64.dp else 40.dp)
+                )
+                // scrim agar teks tetap terbaca
+                val surf = MaterialTheme.colorScheme.surface
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colorStops = arrayOf(
+                                    0.0f to Color.Transparent,
+                                    0.5f to surf.copy(alpha = 0.35f),
+                                    1f to surf
+                                )
+                            )
+                        )
+                )
+            }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -515,6 +559,7 @@ fun NowPlayingSheet(
                     )
                 }
             }
+        }
         }
     }
 }
