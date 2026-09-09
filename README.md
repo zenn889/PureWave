@@ -1,5 +1,8 @@
 # PureWave — Music Player Offline (Android)
 
+> **Panduan install manual (sideload) ada di [INSTALL.md](INSTALL.md)** —
+> termasuk kenapa muncul peringatan & cara tetap install dengan aman.
+
 Music player Android **native** (Kotlin + Jetpack Compose + Media3/ExoPlayer).
 Memutar semua musik dari penyimpanan internal HP. **Tanpa internet, tanpa
 akun, tanpa iklan.**
