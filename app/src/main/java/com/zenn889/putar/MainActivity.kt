@@ -104,6 +104,7 @@ import com.zenn889.putar.ui.NowPlayingSheet
 import com.zenn889.putar.ui.PlaylistBrowserSheet
 import com.zenn889.putar.ui.PlayerMirror
 import com.zenn889.putar.ui.ProgressState
+import com.zenn889.putar.ui.PureWaveBottomBar
 import com.zenn889.putar.ui.QueueEntry
 import com.zenn889.putar.ui.QueueSheet
 import com.zenn889.putar.ui.RecentlyAddedRow
@@ -793,19 +794,37 @@ fun PlayerApp() {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            MiniPlayer(
-                mirror = mirror,
-                progress = progressState,
-                onClick = { if (mirror.hasMedia) showFullPlayer = true },
-                onPlayPause = {
-                    val c = controller ?: return@MiniPlayer
-                    if (mirror.playing) c.pause()
-                    else if (c.mediaItemCount > 0 &&
-                        (c.playbackState == Player.STATE_IDLE || c.currentMediaItem != null)
-                    ) resumePlay()
-                },
-                onNext = { controller?.seekToNextMediaItem() }
-            )
+            Column {
+                if (mirror.hasMedia) {
+                    MiniPlayer(
+                        mirror = mirror,
+                        progress = progressState,
+                        onClick = { if (mirror.hasMedia) showFullPlayer = true },
+                        onPlayPause = {
+                            val c = controller ?: return@MiniPlayer
+                            if (mirror.playing) c.pause()
+                            else if (c.mediaItemCount > 0 &&
+                                (c.playbackState == Player.STATE_IDLE || c.currentMediaItem != null)
+                            ) resumePlay()
+                        },
+                        onNext = { controller?.seekToNextMediaItem() }
+                    )
+                }
+                PureWaveBottomBar(
+                    current = tab,
+                    onSelect = { sel ->
+                        if (sel != tab) {
+                            if (inDetail) {
+                                selAlbum = null
+                                selArtist = null
+                                selFolder = null
+                            }
+                            query = ""
+                            tab = sel
+                        }
+                    }
+                )
+            }
         }
     ) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
@@ -815,7 +834,7 @@ fun PlayerApp() {
                     color = Coral,
                     modifier = Modifier.align(Alignment.Center)
                 )
-                tracks.isEmpty() -> EmptyLibraryScreen()
+                tracks.isEmpty() && videos.isEmpty() -> EmptyLibraryScreen()
                 else -> Column(Modifier.fillMaxSize()) {
                     if (inDetail) {
                         val back = {
@@ -887,10 +906,6 @@ fun PlayerApp() {
                                 if (inDetail) {
                                     selAlbum = null; selArtist = null; selFolder = null
                                 }
-                            },
-                            onTabSelect = {
-                                if (it != tab) query = ""
-                                tab = it
                             },
                             onOpenSettings = { showSettings = true },
                             onPlayAllShuffled = { playList(rootSongs, 0, shuffled = true) },
@@ -1317,7 +1332,6 @@ private fun LibraryHeader(
     rootFavs: Int,
     query: String,
     onQueryChange: (String) -> Unit,
-    onTabSelect: (LibraryTab) -> Unit,
     onOpenSettings: () -> Unit,
     onPlayAllShuffled: () -> Unit,
     showSort: Boolean,
@@ -1401,8 +1415,6 @@ private fun LibraryHeader(
             ),
             modifier = Modifier.fillMaxWidth()
         )
-
-        LibraryTabBar(current = tab, onSelect = onTabSelect)
 
         Spacer(Modifier.height(6.dp))
         val info = when (tab) {

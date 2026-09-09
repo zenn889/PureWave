@@ -52,7 +52,7 @@ akun, tanpa iklan.**
 ## Unduh
 
 https://github.com/zenn889/music-player/releases — ambil
-`purewave-v2.9.0.apk` terbaru. Karena tanda tangan sama dengan v2.7.0,
+`purewave-v2.9.1.apk` terbaru. Karena tanda tangan sama dengan v2.7.0,
 install langsung menggantikan (update) versi tersebut.
 
 ## Bangun sendiri
