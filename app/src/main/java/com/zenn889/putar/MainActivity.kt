@@ -762,7 +762,8 @@ fun PlayerApp() {
     var showSettings by remember { mutableStateOf(false) }
     var showFilters by remember { mutableStateOf(false) }
     var showStats by remember { mutableStateOf(false) }
-    var videoNow by remember { mutableStateOf<VideoItem?>(null) }
+    var videoQueue by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
+    var videoIndex by remember { mutableStateOf(0) }
     var showVideoPlayer by remember { mutableStateOf(false) }
 
     // cadangkan / pulihkan data (SAF)
@@ -1011,10 +1012,11 @@ fun PlayerApp() {
                                     horizontal = 8.dp, vertical = 6.dp
                                 )
                             ) {
-                                items(rootVideos, key = { it.mediaId }) { video ->
+                                itemsIndexed(rootVideos, key = { _, v -> v.mediaId }) { vi, video ->
                                     VideoRow(video) {
                                         controller?.pause()
-                                        videoNow = video
+                                        videoQueue = rootVideos
+                                        videoIndex = vi
                                         showVideoPlayer = true
                                     }
                                 }
@@ -1169,12 +1171,13 @@ fun PlayerApp() {
         )
     }
 
-    videoNow?.let { vid ->
-        if (showVideoPlayer) {
-            VideoPlayerScreen(item = vid) {
-                showVideoPlayer = false
-                videoNow = null
-            }
+    if (showVideoPlayer && videoQueue.isNotEmpty()) {
+        VideoPlayerScreen(
+            queue = videoQueue,
+            startIndex = videoIndex
+        ) {
+            showVideoPlayer = false
+            videoQueue = emptyList()
         }
     }
 

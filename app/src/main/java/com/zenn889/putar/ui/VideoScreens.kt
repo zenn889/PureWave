@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,9 +22,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -34,6 +39,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,7 +69,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
-/* ---------- cache thumbnail video (kecil, mencegah decode ulang) ---------- */
+/* ---------- cache thumbnail video ---------- */
 
 private val thumbCache = object : LinkedHashMap<String, Bitmap>(16, 0.75f, true) {
     override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Bitmap>): Boolean =
@@ -89,7 +95,7 @@ private suspend fun loadVideoThumb(context: android.content.Context, item: Video
         bmp
     }
 
-/** Satu baris video dengan thumbnail (preview) asli dari MediaStore. */
+/** Satu baris video dengan thumbnail (preview) asli. */
 @Composable
 fun VideoRow(item: VideoItem, onClick: () -> Unit) {
     val context = LocalContext.current
@@ -130,7 +136,6 @@ fun VideoRow(item: VideoItem, onClick: () -> Unit) {
                     )
                 }
             }
-            // lencana durasi
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
@@ -170,13 +175,22 @@ fun VideoRow(item: VideoItem, onClick: () -> Unit) {
 }
 
 /**
- * Layar video fullscreen ala pemutar bawaan HP.
- * Urutan lapisan dibuat eksplisit agar tombol kontrol pasti bisa ditekan:
- * video → penangkap ketukan (tampil/sembunyi kontrol) → bar atas → tengah → bawah.
+ * Pemutar video fullscreen dengan antrian:
+ * previous / next antar video, mundur & maju 10 detik, play/jeda,
+ * slider seek, kontrol auto-hide. Urutan lapisan eksplisit agar
+ * semua tombol pasti bisa ditekan.
  */
 @Composable
-fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
+fun VideoPlayerScreen(
+    queue: List<VideoItem>,
+    startIndex: Int,
+    onBack: () -> Unit
+) {
     val context = LocalContext.current
+    val safeStart = startIndex.coerceIn(0, (queue.size - 1).coerceAtLeast(0))
+    var idx by remember(safeStart) { mutableIntStateOf(safeStart) }
+    val item = queue.getOrNull(idx) ?: return
+
     var exo by remember { mutableStateOf<ExoPlayer?>(null) }
     var playing by remember { mutableStateOf(false) }
     var ended by remember { mutableStateOf(false) }
@@ -210,12 +224,34 @@ fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
         }
     }
 
-    // kontrol menutup sendiri saat video berjalan
+    LaunchedEffect(idx) {
+        ended = false
+        positionMs = 0L
+        dragMs = -1L
+        controls = true
+        seeking = false
+    }
+
     LaunchedEffect(playing, controls, ended, seeking) {
         if (playing && controls && !ended && !seeking) {
             delay(3200)
             if (playing && controls && !seeking) controls = false
         }
+    }
+
+    fun togglePlay() {
+        val p = exo ?: return
+        if (p.isPlaying) p.pause()
+        else {
+            if (p.playbackState == androidx.media3.common.Player.STATE_ENDED) p.seekTo(0L)
+            p.play()
+        }
+    }
+
+    fun skipBy(secs: Int) {
+        val p = exo ?: return
+        val target = (p.currentPosition + secs * 1000L).coerceIn(0L, p.duration.coerceAtLeast(0L))
+        p.seekTo(target)
     }
 
     Dialog(
@@ -250,7 +286,7 @@ fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
                 modifier = Modifier.fillMaxSize()
             )
 
-            // 2) penangkap ketukan: ketuk video → tampil/sembunyi kontrol
+            // 2) penangkap ketukan (tampil/sembunyi kontrol)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -258,7 +294,7 @@ fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
             )
 
             if (controls) {
-                // 3) gradien & bar atas: kembali + judul
+                // 3) bar atas: kembali + judul + posisi (N/M)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -289,10 +325,16 @@ fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.weight(1f)
                         )
+                        Text(
+                            "${idx + 1}/${queue.size}",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(end = 14.dp)
+                        )
                     }
                 }
 
-                // 4) tombol play besar di tengah saat berhenti / selesai
+                // 4) play besar di tengah saat berhenti/selesai
                 if (!playing || ended) {
                     Box(
                         modifier = Modifier
@@ -314,7 +356,7 @@ fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
                     }
                 }
 
-                // 5) kontrol bawah: play/jeda + waktu + slider
+                // 5) kontrol bawah
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -323,36 +365,23 @@ fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(24.dp)
+                            .height(20.dp)
                             .background(
                                 Brush.verticalGradient(
                                     listOf(Color(0x00000000), Color(0xE6000000))
                                 )
                             )
                     )
+                    // baris seek
                     val dur = durationMs.coerceAtLeast(1L)
                     val shown = if (dragMs >= 0L) dragMs else positionMs
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(Color(0xE6000000))
-                            .padding(start = 8.dp, end = 14.dp, top = 2.dp, bottom = 8.dp),
+                            .padding(horizontal = 14.dp, vertical = 0.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(onClick = {
-                            if (playing && !ended) exo?.pause()
-                            else {
-                                if (ended) exo?.seekTo(0L)
-                                exo?.play()
-                            }
-                        }) {
-                            Icon(
-                                if (playing && !ended) Icons.Filled.Pause
-                                else Icons.Filled.PlayArrow,
-                                contentDescription = "Putar/Jeda",
-                                tint = Color.White
-                            )
-                        }
                         Text(
                             fmtMs(shown),
                             color = Color.White,
@@ -384,6 +413,62 @@ fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
                             style = MaterialTheme.typography.labelMedium,
                             modifier = Modifier.width(42.dp)
                         )
+                    }
+                    // baris transport: prev -10 play +10 next
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xE6000000))
+                            .padding(bottom = 10.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = {
+                                if (idx > 0) idx--
+                                else exo?.seekTo(0L)
+                            },
+                            enabled = queue.size > 1
+                        ) {
+                            Icon(
+                                Icons.Filled.SkipPrevious,
+                                contentDescription = "Video sebelumnya",
+                                tint = Color.White
+                            )
+                        }
+                        IconButton(onClick = { skipBy(-10) }) {
+                            Icon(
+                                Icons.Filled.FastRewind,
+                                contentDescription = "Mundur 10 detik",
+                                tint = Color.White
+                            )
+                        }
+                        IconButton(onClick = { togglePlay() }) {
+                            Icon(
+                                if (playing && !ended) Icons.Filled.Pause
+                                else Icons.Filled.PlayArrow,
+                                contentDescription = "Putar/Jeda",
+                                tint = Color.White,
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
+                        IconButton(onClick = { skipBy(10) }) {
+                            Icon(
+                                Icons.Filled.FastForward,
+                                contentDescription = "Maju 10 detik",
+                                tint = Color.White
+                            )
+                        }
+                        IconButton(
+                            onClick = { if (idx < queue.size - 1) idx++ },
+                            enabled = queue.size > 1
+                        ) {
+                            Icon(
+                                Icons.Filled.SkipNext,
+                                contentDescription = "Video berikutnya",
+                                tint = Color.White
+                            )
+                        }
                     }
                 }
             }
