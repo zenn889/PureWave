@@ -114,6 +114,48 @@ class MusicRepository(private val context: Context) {
         result
     }
 
+    suspend fun loadVideos(): List<VideoItem> = withContext(Dispatchers.IO) {
+        val result = mutableListOf<VideoItem>()
+        try {
+            val collection = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+            val projection = arrayOf(
+                MediaStore.Video.Media._ID,
+                MediaStore.Video.Media.TITLE,
+                MediaStore.Video.Media.DURATION,
+                MediaStore.Video.Media.DATE_ADDED
+            )
+            context.contentResolver.query(
+                collection, projection, null, null, null
+            )?.use { c ->
+                val iId = c.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+                val iTitle = c.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
+                val iDur = c.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+                val iDate = c.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
+                while (c.moveToNext()) {
+                    val id = c.getLong(iId)
+                    val uri = ContentUris.withAppendedId(collection, id)
+                    val title = c.getString(iTitle)?.trim()
+                        ?.ifBlank { "Video $id" } ?: "Video $id"
+                    val dur = c.getLong(iDur).coerceAtLeast(0L)
+                    if (dur < 1_000L) continue // abaikan klip/efek super pendek
+                    result.add(
+                        VideoItem(
+                            mediaId = id,
+                            contentUri = uri,
+                            title = title,
+                            durationMs = dur,
+                            dateAddedMs = c.getLong(iDate) * 1000L,
+                            folder = null
+                        )
+                    )
+                }
+            }
+        } catch (_: Exception) {
+            // abaikan
+        }
+        result.sortedBy { it.title.lowercase() }
+    }
+
     companion object {
         /** URI art album klasik (content://media/external/audio/albumart/<id>). */
         fun albumArtUri(albumId: Long?): Uri? {

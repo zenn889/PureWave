@@ -16,6 +16,8 @@ akun, tanpa iklan.**
 - **Pustaka terstruktur**: tab Lagu / Album / Artis / Folder — browse per
   album (artwork asli), artis, atau folder penyimpanan; ketuk untuk
   memutar seluruh isinya.
+- **Video**: tab Video memindai video di HP — ketuk untuk memutar
+  fullscreen di dalam app (play/pause/seek), tetap offline.
 - **Auto-resume**: lagu terakhir + posisinya + antrian diingat; saat app
   dibuka lagi tinggal tekan play untuk melanjutkan.
 - **Antrian terlihat**: ikon antrian di layar pemutar penuh — lihat daftar
@@ -50,7 +52,7 @@ akun, tanpa iklan.**
 ## Unduh
 
 https://github.com/zenn889/music-player/releases — ambil
-`purewave-v2.8.0.apk` terbaru. Karena tanda tangan sama dengan v2.7.0,
+`purewave-v2.9.0.apk` terbaru. Karena tanda tangan sama dengan v2.7.0,
 install langsung menggantikan (update) versi tersebut.
 
 ## Bangun sendiri

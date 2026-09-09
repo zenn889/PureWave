@@ -45,6 +45,7 @@ enum class LibraryTab(val label: String) {
     ALBUM("Album"),
     ARTIS("Artis"),
     FOLDER("Folder"),
+    VIDEO("Video"),
     FAVORIT("Favorit")
 }
 

@@ -86,6 +86,7 @@ import com.zenn889.putar.data.PlaylistStore
 import com.zenn889.putar.data.SessionStore
 import com.zenn889.putar.data.StatsStore
 import com.zenn889.putar.data.Track
+import com.zenn889.putar.data.VideoItem
 import com.zenn889.putar.ui.AddToPlaylistSheet
 import com.zenn889.putar.ui.AlbumCard
 import com.zenn889.putar.ui.AlbumRow
@@ -114,6 +115,8 @@ import com.zenn889.putar.ui.StatsDialog
 import com.zenn889.putar.ui.TrackContextSheet
 import com.zenn889.putar.ui.TrackRow
 import com.zenn889.putar.ui.TrackStrip
+import com.zenn889.putar.ui.VideoPlayerScreen
+import com.zenn889.putar.ui.VideoRow
 import com.zenn889.putar.ui.WelcomeScreen
 import com.zenn889.putar.ui.buildArtistItems
 import com.zenn889.putar.ui.buildFolderItems
@@ -168,8 +171,20 @@ private fun readPermission(): String =
     if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
     else Manifest.permission.READ_EXTERNAL_STORAGE
 
+/** Izin video terpisah sejak Android 13; di bawah itu sudah tercakup. */
+private fun videoPermission(): String? =
+    if (Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_VIDEO else null
+
 private fun Context.hasReadPermission(): Boolean =
     ContextCompat.checkSelfPermission(this, readPermission()) == PackageManager.PERMISSION_GRANTED
+
+private fun Context.hasVideoGranted(): Boolean {
+    val perm = videoPermission() ?: return true
+    return ContextCompat.checkSelfPermission(this, perm) == PackageManager.PERMISSION_GRANTED
+}
+
+private fun Context.hasAllMediaPermission(): Boolean =
+    hasReadPermission() && hasVideoGranted()
 
 fun Context.versionName(): String =
     runCatching { packageManager.getPackageInfo(packageName, 0).versionName }
@@ -349,9 +364,10 @@ fun PlayerApp() {
     }
 
     // --- pustaka, izin ---
-    var granted by remember { mutableStateOf(context.hasReadPermission()) }
+    var granted by remember { mutableStateOf(context.hasAllMediaPermission()) }
     var tracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var albums by remember { mutableStateOf<List<Album>>(emptyList()) }
+    var videos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
     var tab by remember { mutableStateOf(LibraryTab.LAGU) }
@@ -428,7 +444,8 @@ fun PlayerApp() {
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
-        granted = result[readPermission()] == true
+        granted = (result[readPermission()] == true) &&
+            (videoPermission()?.let { result[it] == true } ?: true)
     }
 
     LaunchedEffect(granted) {
@@ -436,8 +453,10 @@ fun PlayerApp() {
             loading = true
             val lib = repo.loadLibrary()
             val alb = repo.loadAlbums()
+            val vids = repo.loadVideos()
             tracks = lib
             albums = alb
+            videos = vids
             loading = false
         }
     }
@@ -445,6 +464,7 @@ fun PlayerApp() {
     fun requestPermissions() {
         val perms = buildList {
             add(readPermission())
+            videoPermission()?.let { add(it) }
             if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)
         }
         permissionLauncher.launch(perms.toTypedArray())
@@ -480,6 +500,10 @@ fun PlayerApp() {
         else folderItems.filter {
             it.name.contains(q, ignoreCase = true) || it.path.contains(q, ignoreCase = true)
         }
+    }
+    val rootVideos = remember(videos, q) {
+        if (q.isEmpty()) videos
+        else videos.filter { it.title.contains(q, ignoreCase = true) }
     }
     val favTracks = remember(library, favUris) {
         library.filter { favUris.contains(it.contentUri.toString()) }
@@ -737,6 +761,8 @@ fun PlayerApp() {
     var showSettings by remember { mutableStateOf(false) }
     var showFilters by remember { mutableStateOf(false) }
     var showStats by remember { mutableStateOf(false) }
+    var videoNow by remember { mutableStateOf<VideoItem?>(null) }
+    var showVideoPlayer by remember { mutableStateOf(false) }
 
     // cadangkan / pulihkan data (SAF)
     val backupExport = rememberLauncherForActivityResult(
@@ -853,6 +879,7 @@ fun PlayerApp() {
                             rootAlbums = rootAlbums.size,
                             rootArtists = rootArtists.size,
                             rootFolders = rootFolders.size,
+                            rootVideos = rootVideos.size,
                             rootFavs = favQueryTracks.size,
                             query = query,
                             onQueryChange = {
@@ -959,6 +986,22 @@ fun PlayerApp() {
                             ) {
                                 items(rootFolders, key = { it.path }) { item ->
                                     FolderRow(item) { selFolder = item.key }
+                                }
+                            }
+                            LibraryTab.VIDEO -> if (rootVideos.isEmpty()) {
+                                SimpleEmpty("Tidak ada video cocok")
+                            } else LazyColumn(
+                                modifier = Modifier.weight(1f),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                    horizontal = 8.dp, vertical = 6.dp
+                                )
+                            ) {
+                                items(rootVideos, key = { it.mediaId }) { video ->
+                                    VideoRow(video) {
+                                        controller?.pause()
+                                        videoNow = video
+                                        showVideoPlayer = true
+                                    }
                                 }
                             }
                             LibraryTab.FAVORIT -> Column(Modifier.weight(1f)) {
@@ -1111,6 +1154,15 @@ fun PlayerApp() {
         )
     }
 
+    videoNow?.let { vid ->
+        if (showVideoPlayer) {
+            VideoPlayerScreen(item = vid) {
+                showVideoPlayer = false
+                videoNow = null
+            }
+        }
+    }
+
     if (showContextMenu && contextTrack != null) {
         val tr = contextTrack!!
         TrackContextSheet(
@@ -1261,6 +1313,7 @@ private fun LibraryHeader(
     rootAlbums: Int,
     rootArtists: Int,
     rootFolders: Int,
+    rootVideos: Int,
     rootFavs: Int,
     query: String,
     onQueryChange: (String) -> Unit,
@@ -1361,6 +1414,8 @@ private fun LibraryHeader(
                 if (query.isBlank()) "$rootArtists artis" else "$rootArtists artis cocok"
             LibraryTab.FOLDER ->
                 if (query.isBlank()) "$rootFolders folder" else "$rootFolders folder cocok"
+            LibraryTab.VIDEO ->
+                if (query.isBlank()) "$rootVideos video" else "$rootVideos video cocok"
             LibraryTab.FAVORIT ->
                 if (query.isBlank()) "$rootFavs favorit" else "$rootFavs favorit cocok"
         }
