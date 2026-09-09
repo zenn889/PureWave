@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -54,6 +53,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -63,6 +64,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.zenn889.putar.data.VideoItem
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.FaintInk
@@ -263,6 +266,17 @@ fun VideoPlayerScreen(
             decorFitsSystemWindows = false
         )
     ) {
+        // ukur tinggi navigation bar sungguhan dari window dialog
+        val density = LocalDensity.current
+        val viewForInsets = LocalView.current
+        val navBarPad = remember {
+            val px = runCatching {
+                ViewCompat.getRootWindowInsets(viewForInsets)
+                    ?.getInsets(WindowInsetsCompat.Type.navigationBars())
+                    ?.bottom ?: 0
+            }.getOrDefault(0)
+            with(density) { px.toDp() }
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -359,12 +373,12 @@ fun VideoPlayerScreen(
                     }
                 }
 
-                // 5) kontrol bawah (dinaikkan di atas tombol navigasi sistem)
+                // 5) kontrol bawah (jarak aman di atas gesture bar)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding()
                         .align(Alignment.BottomCenter)
+                        .padding(bottom = navBarPad + 10.dp)
                 ) {
                     Box(
                         modifier = Modifier
