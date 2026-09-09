@@ -1,9 +1,12 @@
 package com.zenn889.putar.ui
 
+import android.graphics.Bitmap
+import android.os.Build
+import android.util.Size
 import android.view.ViewGroup
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,6 +26,7 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -39,6 +43,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,12 +57,47 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.zenn889.putar.data.VideoItem
 import com.zenn889.putar.ui.theme.Coral
+import com.zenn889.putar.ui.theme.FaintInk
 import com.zenn889.putar.ui.theme.MutedInk
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
-/** Satu baris video di tab Video. */
+/* ---------- cache thumbnail video (kecil, mencegah decode ulang) ---------- */
+
+private val thumbCache = object : LinkedHashMap<String, Bitmap>(16, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Bitmap>): Boolean =
+        size > 160
+}
+
+private suspend fun loadVideoThumb(context: android.content.Context, item: VideoItem): Bitmap? =
+    withContext(Dispatchers.IO) {
+        val key = item.contentUri.toString()
+        thumbCache[key]?.let { return@withContext it }
+        val bmp = runCatching {
+            if (Build.VERSION.SDK_INT >= 29) {
+                context.contentResolver.loadThumbnail(item.contentUri, Size(480, 270), null)
+            } else {
+                @Suppress("DEPRECATION")
+                android.provider.MediaStore.Video.Thumbnails.getThumbnail(
+                    context.contentResolver, item.mediaId,
+                    android.provider.MediaStore.Video.Thumbnails.MINI_KIND, null
+                )
+            }
+        }.getOrNull()
+        if (bmp != null) thumbCache[key] = bmp
+        bmp
+    }
+
+/** Satu baris video dengan thumbnail (preview) asli dari MediaStore. */
 @Composable
 fun VideoRow(item: VideoItem, onClick: () -> Unit) {
+    val context = LocalContext.current
+    var thumb by remember(item.contentUri) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(item.contentUri) {
+        thumb = loadVideoThumb(context, item)
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -67,19 +108,42 @@ fun VideoRow(item: VideoItem, onClick: () -> Unit) {
     ) {
         Box(
             modifier = Modifier
-                .size(54.dp)
-                .background(
-                    Brush.linearGradient(listOf(Color(0xFF2A2E38), Color(0xFF191C22))),
-                    RoundedCornerShape(12.dp)
-                ),
-            contentAlignment = Alignment.Center
+                .size(width = 96.dp, height = 56.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFF1C1E24))
         ) {
-            Icon(
-                Icons.Filled.Movie,
-                contentDescription = null,
-                tint = Coral,
-                modifier = Modifier.size(24.dp)
-            )
+            val bmp = thumb
+            if (bmp != null) {
+                Image(
+                    bitmap = bmp.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(
+                        Icons.Filled.Movie,
+                        contentDescription = null,
+                        tint = FaintInk,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+            // lencana durasi
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(3.dp)
+                    .background(Color(0x99000000), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 4.dp, vertical = 1.dp)
+            ) {
+                Text(
+                    fmtMs(item.durationMs),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
         }
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
@@ -87,12 +151,12 @@ fun VideoRow(item: VideoItem, onClick: () -> Unit) {
                 item.title,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                style = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium
             )
             Text(
-                "Video · ${fmtMs(item.durationMs)}",
-                style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+                "Video · ketuk untuk memutar",
+                style = MaterialTheme.typography.bodySmall,
                 color = MutedInk
             )
         }
@@ -106,8 +170,9 @@ fun VideoRow(item: VideoItem, onClick: () -> Unit) {
 }
 
 /**
- * Layar video fullscreen ala pemutar bawaan HP:
- * video penuh layar, kontrol muncul saat disentuh lalu menutup sendiri.
+ * Layar video fullscreen ala pemutar bawaan HP.
+ * Urutan lapisan dibuat eksplisit agar tombol kontrol pasti bisa ditekan:
+ * video → penangkap ketukan (tampil/sembunyi kontrol) → bar atas → tengah → bawah.
  */
 @Composable
 fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
@@ -134,7 +199,6 @@ fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
         }
     }
 
-    // detak progres
     LaunchedEffect(exo) {
         while (true) {
             val p = exo ?: break
@@ -142,12 +206,11 @@ fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
             ended = p.playbackState == androidx.media3.common.Player.STATE_ENDED
             positionMs = p.currentPosition.coerceAtLeast(0L)
             durationMs = p.duration.coerceAtLeast(0L)
-            if (!playing && !ended) controls = true
             delay(400)
         }
     }
 
-    // sembunyikan kontrol otomatis saat diputar
+    // kontrol menutup sendiri saat video berjalan
     LaunchedEffect(playing, controls, ended, seeking) {
         if (playing && controls && !ended && !seeking) {
             delay(3200)
@@ -166,9 +229,8 @@ fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black)
-                .clickable(enabled = true) { controls = !controls }
         ) {
-            // video
+            // 1) video
             AndroidView(
                 factory = { ctx ->
                     PlayerView(ctx).apply {
@@ -188,14 +250,21 @@ fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
                 modifier = Modifier.fillMaxSize()
             )
 
+            // 2) penangkap ketukan: ketuk video → tampil/sembunyi kontrol
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { controls = !controls }
+            )
+
             if (controls) {
-                // gradien atas (kembali + judul)
+                // 3) gradien & bar atas: kembali + judul
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
                             Brush.verticalGradient(
-                                listOf(Color(0xCC000000), Color(0x00000000))
+                                listOf(Color(0xE6000000), Color(0x00000000))
                             )
                         )
                         .align(Alignment.TopCenter)
@@ -216,19 +285,19 @@ fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             color = Color.White,
-                            style = androidx.compose.material3.MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.weight(1f)
                         )
                     }
                 }
 
-                // tombol play/jeda besar di tengah saat berhenti
+                // 4) tombol play besar di tengah saat berhenti / selesai
                 if (!playing || ended) {
                     Box(
                         modifier = Modifier
-                            .size(72.dp)
-                            .background(Color(0x66000000), CircleShape)
+                            .size(76.dp)
+                            .background(Color(0x99000000), CircleShape)
                             .align(Alignment.Center)
                             .clickable {
                                 if (ended) exo?.seekTo(0L)
@@ -240,48 +309,39 @@ fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
                             Icons.Filled.PlayArrow,
                             contentDescription = "Putar",
                             tint = Color.White,
-                            modifier = Modifier.size(44.dp)
-                        )
-                    }
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .background(Color(0x33000000), CircleShape)
-                            .align(Alignment.Center)
-                            .clickable { exo?.pause() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Filled.Pause,
-                            contentDescription = "Jeda",
-                            tint = Color.White,
-                            modifier = Modifier.size(40.dp)
+                            modifier = Modifier.size(46.dp)
                         )
                     }
                 }
 
-                // kontrol bawah: play + waktu + slider
-                Box(
+                // 5) kontrol bawah: play/jeda + waktu + slider
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color(0x00000000), Color(0xCC000000))
-                            )
-                        )
                         .align(Alignment.BottomCenter)
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(24.dp)
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(Color(0x00000000), Color(0xE6000000))
+                                )
+                            )
+                    )
                     val dur = durationMs.coerceAtLeast(1L)
                     val shown = if (dragMs >= 0L) dragMs else positionMs
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                            .background(Color(0xE6000000))
+                            .padding(start = 8.dp, end = 14.dp, top = 2.dp, bottom = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(onClick = {
-                            if (playing) exo?.pause() else {
+                            if (playing && !ended) exo?.pause()
+                            else {
                                 if (ended) exo?.seekTo(0L)
                                 exo?.play()
                             }
@@ -296,7 +356,7 @@ fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
                         Text(
                             fmtMs(shown),
                             color = Color.White,
-                            style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelMedium,
                             modifier = Modifier.width(42.dp)
                         )
                         Slider(
@@ -321,7 +381,7 @@ fun VideoPlayerScreen(item: VideoItem, onBack: () -> Unit) {
                         Text(
                             fmtMs(dur),
                             color = Color.White,
-                            style = androidx.compose.material3.MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.labelMedium,
                             modifier = Modifier.width(42.dp)
                         )
                     }
