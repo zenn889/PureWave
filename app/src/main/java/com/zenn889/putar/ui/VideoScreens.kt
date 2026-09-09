@@ -378,7 +378,7 @@ fun VideoPlayerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = navBarPad + 10.dp)
+                        .padding(bottom = navBarPad + 56.dp)
                 ) {
                     Box(
                         modifier = Modifier
