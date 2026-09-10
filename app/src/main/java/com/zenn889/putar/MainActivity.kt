@@ -94,7 +94,6 @@ import com.zenn889.putar.data.Track
 import com.zenn889.putar.data.VideoItem
 import com.zenn889.putar.ui.AddToPlaylistSheet
 import com.zenn889.putar.ui.AlbumCard
-import com.zenn889.putar.ui.AlbumRow
 import com.zenn889.putar.ui.ArtistRow
 import com.zenn889.putar.ui.BackBar
 import com.zenn889.putar.ui.EqualizerSheet
@@ -103,7 +102,6 @@ import com.zenn889.putar.ui.HeroCard
 import com.zenn889.putar.ui.LibraryFilterDialog
 import com.zenn889.putar.ui.LibraryList
 import com.zenn889.putar.ui.LibraryTab
-import com.zenn889.putar.ui.LibraryTabBar
 import com.zenn889.putar.ui.LyricsSheet
 import com.zenn889.putar.ui.MiniPlayer
 import com.zenn889.putar.ui.NowPlayingSheet
@@ -436,7 +434,6 @@ fun PlayerApp() {
     // --- pustaka, izin ---
     var granted by remember { mutableStateOf(context.hasAllMediaPermission()) }
     var tracks by remember { mutableStateOf<List<Track>>(emptyList()) }
-    var albums by remember { mutableStateOf<List<Album>>(emptyList()) }
     var videos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
@@ -522,10 +519,8 @@ fun PlayerApp() {
         if (granted) {
             loading = true
             val lib = repo.loadLibrary()
-            val alb = repo.loadAlbums()
             val vids = repo.loadVideos()
             tracks = lib
-            albums = alb
             videos = vids
             loading = false
         }

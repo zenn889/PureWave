@@ -24,7 +24,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.PlaylistPlay
-import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -123,7 +123,7 @@ fun TrackContextSheet(
                 if (isFavorite) "Hapus dari favorit" else "Tandai favorit",
                 tint = if (isFavorite) Coral else MaterialTheme.colorScheme.onSurface
             ) { onToggleFavorite() }
-            ActionRow(Icons.Filled.QueueMusic, "Tambah ke playlist") { onAddToPlaylist() }
+            ActionRow(Icons.AutoMirrored.Filled.QueueMusic, "Tambah ke playlist") { onAddToPlaylist() }
         }
     }
 }

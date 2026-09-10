@@ -19,7 +19,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.OfflinePin
-import androidx.compose.material.icons.filled.QueueMusic
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,16 +47,20 @@ fun WelcomeScreen(onDone: () -> Unit) {
     val features = listOf(
         Triple(Icons.Filled.LibraryMusic, "Pustaka HP-mu", "Lagu, Album, Artis & Folder"),
         Triple(Icons.Filled.Favorite, "Favorit & Playlist", "Koleksi pribadi yang tersimpan"),
-        Triple(Icons.Filled.QueueMusic, "Antrian cerdas", "Atur urutan, sortir, kecepatan putar"),
+        Triple(Icons.AutoMirrored.Filled.QueueMusic, "Antrian cerdas", "Atur urutan, sortir, kecepatan putar"),
         Triple(Icons.Filled.Equalizer, "Suara sesuai selera", "EQ 5 pita + Bass Boost bawaan"),
         Triple(Icons.Filled.OfflinePin, "100% offline", "Tanpa internet, tanpa iklan")
     )
 
+    val light = MaterialTheme.colorScheme.background.luminance() > 0.5f
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                Brush.verticalGradient(listOf(Color(0xFF0B0C0E), Color(0xFF191009)))
+                Brush.verticalGradient(
+                    if (light) listOf(Color(0xFFFBF8F5), Color(0xFFF3E3D9))
+                    else listOf(Color(0xFF0B0C0E), Color(0xFF191009))
+                )
             )
     ) {
         Column(

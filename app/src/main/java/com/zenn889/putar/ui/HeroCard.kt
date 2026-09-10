@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -24,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,12 +54,16 @@ private fun fmtCount(n: Int): String =
 @Composable
 fun HeroCard(songs: List<Track>, onShuffleAll: () -> Unit) {
     val totalMs = remember(songs) { songs.sumOf { it.durationMs } }
+    val light = MaterialTheme.colorScheme.background.luminance() > 0.5f
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .background(
-                Brush.linearGradient(listOf(Color(0xFF221C20), Color(0xFF2B1F18))),
+                Brush.linearGradient(
+                    if (light) listOf(Color(0xFFFDF1EA), Color(0xFFF6DCCD))
+                    else listOf(Color(0xFF221C20), Color(0xFF2B1F18))
+                ),
                 RoundedCornerShape(24.dp)
             )
             .clickable(onClick = onShuffleAll)
@@ -98,7 +104,7 @@ fun HeroCard(songs: List<Track>, onShuffleAll: () -> Unit) {
                     Text(
                         "lagu • ${fmtDurLabel(totalMs)}",
                         fontSize = 13.sp,
-                        color = Color(0xFFFFD9CB)
+                        color = if (light) Color(0xFF8A4A2E) else Color(0xFFFFD9CB)
                     )
                 }
                 Spacer(Modifier.size(10.dp))

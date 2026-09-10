@@ -67,70 +67,7 @@ fun buildFolderItems(tracks: List<Track>): List<FolderItem> =
         }
         .sortedBy { it.name.lowercase() }
 
-/* ---------- tab bar ---------- */
-
-@Composable
-fun LibraryTabBar(current: LibraryTab, onSelect: (LibraryTab) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        LibraryTab.entries.forEach { tab ->
-            val selected = tab == current
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(if (selected) Coral else SurfaceHigh)
-                    .clickable { onSelect(tab) }
-                    .padding(vertical = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    tab.label,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    color = if (selected) Color(0xFF190902) else MutedInk
-                )
-            }
-        }
-    }
-}
-
 /* ---------- baris Album / Artis / Folder ---------- */
-
-@Composable
-fun AlbumRow(album: Album, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        AlbumArt(MusicRepository.albumArtUri(album.albumId), size = 48.dp)
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                album.title,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                "${album.displayArtist} · ${album.songCount} lagu",
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodySmall,
-                color = MutedInk
-            )
-        }
-    }
-}
 
 /** Kartu album persegi untuk tab Album (kisi ala Spotify). */
 @Composable

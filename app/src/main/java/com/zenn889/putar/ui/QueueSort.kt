@@ -22,8 +22,8 @@ import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.QueueMusic
-import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -67,7 +67,7 @@ fun SortMenuButton(
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
-            Icon(Icons.Filled.Sort, contentDescription = "Urutkan", tint = MutedInk)
+            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Urutkan", tint = MutedInk)
         }
         DropdownMenu(
             expanded = expanded,
@@ -122,7 +122,7 @@ fun QueueSheet(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.Filled.QueueMusic, contentDescription = null, tint = Coral)
+            Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, tint = Coral)
             Spacer(Modifier.width(10.dp))
             Text(
                 "Antrian",
@@ -144,7 +144,7 @@ fun QueueSheet(
             )
         } else {
             LazyColumn(Modifier.padding(top = 6.dp, bottom = 20.dp)) {
-                itemsIndexed(entries) { index, entry ->
+                itemsIndexed(entries, key = { i, e -> "$i|${e.uri}" }) { index, entry ->
                     val isCurrent = entry.uri == currentUri
                     Row(
                         modifier = Modifier
