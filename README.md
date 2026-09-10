@@ -2,6 +2,9 @@
 
 > **Panduan install manual (sideload) ada di [INSTALL.md](INSTALL.md)** —
 > termasuk kenapa muncul peringatan & cara tetap install dengan aman.
+>
+> **Dokumentasi teknis & buku resep: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**
+> — peta kode, cara ubah tema, cara menambah fitur, dan langkah rilis APK.
 
 Music player Android **native** (Kotlin + Jetpack Compose + Media3/ExoPlayer).
 Memutar semua musik dari penyimpanan internal HP. **Tanpa internet, tanpa
