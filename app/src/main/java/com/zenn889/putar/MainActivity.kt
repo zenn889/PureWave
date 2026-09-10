@@ -35,6 +35,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -1353,10 +1354,10 @@ private fun LibraryHeader(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.Filled.MusicNote,
+                    Icons.Filled.GraphicEq,
                     contentDescription = "PureWave",
                     tint = Color(0xFFFFF8F2),
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
             Spacer(Modifier.width(10.dp))

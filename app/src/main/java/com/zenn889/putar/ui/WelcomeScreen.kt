@@ -17,7 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LibraryMusic
-import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.QueueMusic
 import androidx.compose.material3.Button
@@ -85,7 +85,7 @@ fun WelcomeScreen(onDone: () -> Unit) {
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        Icons.Filled.MusicNote,
+                        Icons.Filled.GraphicEq,
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(44.dp)
