@@ -40,6 +40,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Album
+import androidx.compose.material.icons.filled.Equalizer
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Search
@@ -105,6 +113,9 @@ import com.zenn889.putar.ui.HeroCard
 import com.zenn889.putar.ui.LibraryFilterDialog
 import com.zenn889.putar.ui.LibraryList
 import com.zenn889.putar.ui.LibraryTab
+import com.zenn889.putar.ui.QuickAccessGrid
+import com.zenn889.putar.ui.QuickEntry
+import com.zenn889.putar.ui.SectionHeader
 import com.zenn889.putar.ui.LyricsSheet
 import com.zenn889.putar.ui.MiniPlayer
 import com.zenn889.putar.ui.NowPlayingSheet
@@ -1052,6 +1063,31 @@ fun PlayerApp() {
                                 item { HeroCard(rootSongs) { playList(rootSongs, 0, true) } }
                                 if (q.isEmpty()) {
                                     item {
+                                        QuickAccessGrid(
+                                            entries = listOf(
+                                                QuickEntry("album", "Album", Icons.Filled.Album, rootAlbums.size, true),
+                                                QuickEntry("artis", "Artis", Icons.Filled.People, rootArtists.size),
+                                                QuickEntry("folder", "Folder", Icons.Filled.Folder, rootFolders.size),
+                                                QuickEntry("video", "Video", Icons.Filled.Movie, rootVideos.size),
+                                                QuickEntry("favorit", "Favorit", Icons.Filled.Favorite, favQueryTracks.size, true),
+                                                QuickEntry("playlist", "Playlist", Icons.AutoMirrored.Filled.PlaylistPlay),
+                                                QuickEntry("statistik", "Statistik", Icons.Filled.Insights),
+                                                QuickEntry("eq", "Equalizer", Icons.Filled.Equalizer)
+                                            )
+                                        ) { entry ->
+                                            when (entry.key) {
+                                                "album" -> tab = LibraryTab.ALBUM
+                                                "artis" -> tab = LibraryTab.ARTIS
+                                                "folder" -> tab = LibraryTab.FOLDER
+                                                "video" -> tab = LibraryTab.VIDEO
+                                                "favorit" -> tab = LibraryTab.FAVORIT
+                                                "playlist" -> showPlaylistBrowser = true
+                                                "statistik" -> showStats = true
+                                                "eq" -> showEq = true
+                                            }
+                                        }
+                                    }
+                                    item {
                                         RecentlyAddedRow(rootSongs) { list, idx ->
                                             playList(list, idx, false)
                                         }
@@ -1072,14 +1108,9 @@ fun PlayerApp() {
                                     }
                                 }
                                 item {
-                                    Text(
-                                        if (q.isEmpty()) "Semua lagu"
-                                        else "Hasil pencarian · ${rootSongs.size}",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(
-                                            start = 18.dp, end = 18.dp, top = 10.dp, bottom = 2.dp
-                                        )
+                                    SectionHeader(
+                                        title = if (q.isEmpty()) "Semua lagu" else "Hasil pencarian",
+                                        count = rootSongs.size
                                     )
                                 }
                                 itemsIndexed(rootSongs, key = { _, t -> t.contentUri.toString() }) { index, track ->

@@ -54,6 +54,8 @@ private fun fmtCount(n: Int): String =
 @Composable
 fun HeroCard(songs: List<Track>, onShuffleAll: () -> Unit) {
     val totalMs = remember(songs) { songs.sumOf { it.durationMs } }
+    val albumCount = remember(songs) { songs.mapNotNull { it.albumId }.distinct().size }
+    val artistCount = remember(songs) { songs.map { it.displayArtist }.distinct().size }
     val light = MaterialTheme.colorScheme.background.luminance() > 0.5f
     Box(
         modifier = Modifier
@@ -61,8 +63,8 @@ fun HeroCard(songs: List<Track>, onShuffleAll: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .background(
                 Brush.linearGradient(
-                    if (light) listOf(Color(0xFFFDF1EA), Color(0xFFF6DCCD))
-                    else listOf(Color(0xFF221C20), Color(0xFF2B1F18))
+                    if (light) listOf(Color(0xFFFDF1EA), Color(0xFFF8E1D4), Color(0xFFF3D3C3))
+                    else listOf(Color(0xFF2B2126), Color(0xFF231B1F), Color(0xFF191316))
                 ),
                 RoundedCornerShape(24.dp)
             )
@@ -105,6 +107,12 @@ fun HeroCard(songs: List<Track>, onShuffleAll: () -> Unit) {
                         "lagu • ${fmtDurLabel(totalMs)}",
                         fontSize = 13.sp,
                         color = if (light) Color(0xFF8A4A2E) else Color(0xFFFFD9CB)
+                    )
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        "$albumCount album • $artistCount artis",
+                        fontSize = 11.sp,
+                        color = if (light) Color(0xFFA2664A) else Color(0xFFC9A392)
                     )
                 }
                 Spacer(Modifier.size(10.dp))
