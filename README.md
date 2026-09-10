@@ -62,9 +62,14 @@ akun, tanpa iklan.**
 
 ## Unduh
 
-https://github.com/zenn889/music-player/releases — ambil
-`purewave-v2.15.0.apk` terbaru. Karena tanda tangan sama dengan v2.7.0,
-install langsung menggantikan (update) versi tersebut.
+https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.16.0.apk`.
+
+> **Pindah dari v2.7.0–v2.15.0 (wajib baca):** rilis v2.16.0 memakai kunci
+> penandatangan **baru**. Kunci lama (v2.7.0–v2.15.0) tidak bisa dipakai lagi
+> karena password-nya hilang, dan Android menolak update yang tandatangannya
+> berbeda — jadi versi lama harus di-uninstall dulu. Langkah lengkapnya di
+> [INSTALL.md](INSTALL.md#pindah-dari-versi-lama). Setelah pindah ke v2.16.0,
+> tanda tangan baru ini yang dipakai untuk rilis-rilis berikutnya.
 
 ## Bangun sendiri
 

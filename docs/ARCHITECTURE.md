@@ -248,7 +248,11 @@ Catatan penting:
   rilis berikutnya harus pakai kunci baru, dan **semua** pengguna wajib
   uninstall dulu (favorit/playlist/statistik hilang kecuali sudah diekspor
   lewat Setelan → Backup sebelum uninstall).
-- Tanda tangan tetap sama sejak v2.7.0 → user bisa update tanpa hapus data.
+- Tanda tangan: v2.7.0–v2.15.0 memakai `putar-release.jks` lama; sejak
+  **v2.16.0** memakai keystore baru `~/keystores/putar-release.jks` (alias
+  `putar`) karena password kunci lama hilang. Artinya pengguna v2.7.0–v2.15.0
+  harus uninstall dulu (lihat INSTALL.md "Pindah dari versi lama"); rilis
+  v2.16.0 ke atas tetap bisa saling menimpa.
 - `versionCode` harus selalu naik, kalau tidak akan ditolak saat update.
 
 ---
