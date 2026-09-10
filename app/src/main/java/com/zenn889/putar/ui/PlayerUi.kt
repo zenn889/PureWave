@@ -68,6 +68,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -84,6 +85,7 @@ import coil.compose.SubcomposeAsyncImageContent
 import com.zenn889.putar.data.MusicRepository
 import com.zenn889.putar.data.Track
 import com.zenn889.putar.ui.theme.Coral
+import com.zenn889.putar.ui.theme.CoralBright
 import com.zenn889.putar.ui.theme.FaintInk
 import com.zenn889.putar.ui.theme.MutedInk
 import com.zenn889.putar.ui.theme.SurfaceHigh
@@ -468,19 +470,21 @@ fun NowPlayingSheet(
                 // pendar lembut di belakang artwork
                 Box(
                     modifier = Modifier
-                        .size(280.dp)
+                        .size(300.dp)
                         .background(
                             Brush.radialGradient(
-                                listOf(Coral.copy(alpha = 0.16f), Color.Transparent)
+                                listOf(Coral.copy(alpha = 0.22f), Color.Transparent)
                             ),
                             CircleShape
                         )
                 )
                 AlbumArt(
                     uri = mirror.artwork,
-                    size = 224.dp,
-                    shape = RoundedCornerShape(22.dp),
-                    modifier = Modifier.aspectRatio(1f)
+                    size = 244.dp,
+                    shape = RoundedCornerShape(26.dp),
+                    modifier = Modifier
+                        .aspectRatio(1f)
+                        .shadow(28.dp, RoundedCornerShape(26.dp), clip = false)
                 )
             }
             Spacer(Modifier.height(20.dp))
@@ -493,11 +497,12 @@ fun NowPlayingSheet(
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                text = mirror.artist,
+                text = mirror.artist.uppercase(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MutedInk
+                style = MaterialTheme.typography.labelMedium,
+                letterSpacing = 1.sp,
+                color = CoralBright
             )
             Spacer(Modifier.height(10.dp))
 
@@ -514,12 +519,16 @@ fun NowPlayingSheet(
                     dragMs = -1L
                 },
                 valueRange = 0f..(durMs / 1000f).coerceAtLeast(1f),
-                colors = SliderDefaults.colors(thumbColor = Coral, activeTrackColor = Coral),
+                colors = SliderDefaults.colors(
+                    thumbColor = Coral,
+                    activeTrackColor = Coral,
+                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                ),
                 modifier = Modifier.fillMaxWidth()
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(fmtMs(shownMs), style = MaterialTheme.typography.labelSmall, color = MutedInk)
-                Text(fmtMs(durMs), style = MaterialTheme.typography.labelSmall, color = MutedInk)
+                Text(fmtMs(shownMs), style = MaterialTheme.typography.labelMedium, color = MutedInk)
+                Text(fmtMs(durMs), style = MaterialTheme.typography.labelMedium, color = MutedInk)
             }
 
             Spacer(Modifier.height(6.dp))
@@ -537,27 +546,27 @@ fun NowPlayingSheet(
                 }
                 IconButton(onClick = onPrev) {
                     Icon(Icons.Filled.SkipPrevious, contentDescription = "Sebelumnya",
-                        tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(34.dp))
+                        tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(38.dp))
                 }
-                Surface(
-                    shape = CircleShape,
-                    color = Coral,
-                    modifier = Modifier.size(66.dp)
+                Box(
+                    modifier = Modifier
+                        .size(74.dp)
+                        .shadow(18.dp, CircleShape, clip = false)
+                        .clip(CircleShape)
+                        .background(Brush.linearGradient(listOf(Coral, CoralBright)))
+                        .clickable(onClick = onPlayPause),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        IconButton(onClick = onPlayPause) {
-                            Icon(
-                                imageVector = if (mirror.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                contentDescription = if (mirror.playing) "Jeda" else "Putar",
-                                tint = Color(0xFF190902),
-                                modifier = Modifier.size(36.dp)
-                            )
-                        }
-                    }
+                    Icon(
+                        imageVector = if (mirror.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (mirror.playing) "Jeda" else "Putar",
+                        tint = Color(0xFF190902),
+                        modifier = Modifier.size(40.dp)
+                    )
                 }
                 IconButton(onClick = onNext) {
                     Icon(Icons.Filled.SkipNext, contentDescription = "Berikutnya",
-                        tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(34.dp))
+                        tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(38.dp))
                 }
                 IconButton(onClick = onToggleRepeat) {
                     Icon(
