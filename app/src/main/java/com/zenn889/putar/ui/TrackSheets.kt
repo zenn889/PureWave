@@ -22,8 +22,8 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.PlaylistPlay
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material3.AlertDialog
@@ -117,7 +117,7 @@ fun TrackContextSheet(
             Spacer(Modifier.height(10.dp))
             ActionRow(Icons.Filled.PlayArrow, "Putar sekarang") { onPlayNow() }
             ActionRow(Icons.Filled.SkipNext, "Putar berikutnya") { onPlayNext() }
-            ActionRow(Icons.Filled.PlaylistAdd, "Tambah ke antrian") { onAddQueue() }
+            ActionRow(Icons.AutoMirrored.Filled.PlaylistAdd, "Tambah ke antrian") { onAddQueue() }
             ActionRow(
                 if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                 if (isFavorite) "Hapus dari favorit" else "Tandai favorit",
@@ -162,7 +162,7 @@ fun AddToPlaylistSheet(
                 )
             }
             playlists.forEach { pl ->
-                ActionRow(Icons.Filled.PlaylistPlay, "${pl.name}  ·  ${pl.uris.size} lagu") {
+                ActionRow(Icons.AutoMirrored.Filled.PlaylistPlay, "${pl.name}  ·  ${pl.uris.size} lagu") {
                     onPick(pl.name)
                 }
             }
@@ -265,7 +265,7 @@ fun PlaylistBrowserSheet(
                             .padding(horizontal = 20.dp, vertical = 11.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Filled.PlaylistPlay, contentDescription = null, tint = Coral)
+                        Icon(Icons.AutoMirrored.Filled.PlaylistPlay, contentDescription = null, tint = Coral)
                         Spacer(Modifier.width(14.dp))
                         Column(Modifier.weight(1f)) {
                             Text(pl.name, style = MaterialTheme.typography.bodyLarge,

@@ -13,6 +13,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,10 +22,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -35,6 +38,7 @@ import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Lyrics
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -355,238 +359,327 @@ fun NowPlayingSheet(
     onCycleSpeed: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val dark = isSystemInDarkTheme()
+    val surf = MaterialTheme.colorScheme.surface
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = Color.Transparent,
+        dragHandle = null,
+        scrimColor = Color.Black.copy(alpha = 0.55f)
     ) {
         Box(Modifier.fillMaxWidth()) {
-            // ambience ala Spotify/YT Music: artwork buram jadi latar + pendar warna
+            // --- latar khas Spotify: artwork diburamkan besar + gradasi turun ---
+            Box(Modifier.matchParentSize().background(surf))
             val art = mirror.artwork
             if (art != null) {
-                val dark = isSystemInDarkTheme()
                 SubcomposeAsyncImage(
                     model = art,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .matchParentSize()
-                        .scale(1.6f)
-                        .alpha(if (dark) 0.17f else 0.10f)
-                        .blur(if (dark) 64.dp else 40.dp)
-                )
-                // scrim agar teks tetap terbaca
-                val surf = MaterialTheme.colorScheme.surface
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .background(
-                            Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0.0f to Color.Transparent,
-                                    0.5f to surf.copy(alpha = 0.35f),
-                                    1f to surf
-                                )
-                            )
-                        )
+                        .scale(2.2f)
+                        .alpha(if (dark) 0.55f else 0.42f)
+                        .blur(90.dp)
                 )
             }
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // pegangan lembut ala bottom sheet premium
             Box(
                 modifier = Modifier
-                    .padding(top = 2.dp)
-                    .size(width = 44.dp, height = 4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(MaterialTheme.colorScheme.outline)
-            )
-            Spacer(Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // kecepatan putar
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = Coral.copy(alpha = 0.14f),
-                    modifier = Modifier.clickable(onClick = onCycleSpeed)
-                ) {
-                    Text(
-                        speedLabel,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = Coral,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                }
-                Spacer(Modifier.weight(1f))
-                IconButton(onClick = onOpenLyrics) {
-                    Icon(
-                        Icons.Filled.Lyrics,
-                        contentDescription = "Lirik",
-                        tint = FaintInk
-                    )
-                }
-                IconButton(onClick = onToggleFavorite) {
-                    Icon(
-                        imageVector = if (isFavorite) Icons.Filled.Favorite
-                        else Icons.Filled.FavoriteBorder,
-                        contentDescription = if (isFavorite) "Hapus favorit" else "Favorit",
-                        tint = if (isFavorite) Coral else FaintInk
-                    )
-                }
-                if (sleepLabel != null) {
-                    Text(
-                        text = sleepLabel,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Coral,
-                        modifier = Modifier.padding(end = 4.dp)
-                    )
-                }
-                IconButton(onClick = onSleep) {
-                    Icon(
-                        imageVector = Icons.Filled.Timer,
-                        contentDescription = "Sleep timer",
-                        tint = if (sleepActive) Coral else FaintInk
-                    )
-                }
-                IconButton(onClick = onOpenQueue) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                        contentDescription = "Antrian",
-                        tint = FaintInk
-                    )
-                }
-                IconButton(onClick = onOpenEqualizer) {
-                    Icon(
-                        imageVector = Icons.Filled.Equalizer,
-                        contentDescription = "Equalizer",
-                        tint = FaintInk
-                    )
-                }
-            }
-            Spacer(Modifier.height(6.dp))
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                // pendar lembut di belakang artwork
-                Box(
-                    modifier = Modifier
-                        .size(300.dp)
-                        .background(
-                            Brush.radialGradient(
-                                listOf(Coral.copy(alpha = 0.22f), Color.Transparent)
-                            ),
-                            CircleShape
+                    .matchParentSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0f to surf.copy(alpha = 0.12f),
+                                0.45f to surf.copy(alpha = if (dark) 0.58f else 0.48f),
+                                1f to surf
+                            )
                         )
-                )
-                AlbumArt(
-                    uri = mirror.artwork,
-                    size = 244.dp,
-                    shape = RoundedCornerShape(26.dp),
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .shadow(28.dp, RoundedCornerShape(26.dp), clip = false)
-                )
-            }
-            Spacer(Modifier.height(20.dp))
-            Text(
-                text = mirror.title.ifBlank { "Belum ada lagu" },
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = mirror.artist.uppercase(),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.labelMedium,
-                letterSpacing = 1.sp,
-                color = CoralBright
-            )
-            Spacer(Modifier.height(10.dp))
-
-            var dragMs by remember { mutableLongStateOf(-1L) }
-            val durMs = mirror.durationMs.coerceAtLeast(1L)
-            val livePos = progress.positionMs.longValue
-            val shownMs = if (dragMs >= 0L) dragMs else livePos
-
-            Slider(
-                value = (shownMs / 1000f).coerceIn(0f, durMs / 1000f),
-                onValueChange = { dragMs = (it * 1000f).toLong() },
-                onValueChangeFinished = {
-                    controller?.seekTo(dragMs.coerceAtLeast(0L))
-                    dragMs = -1L
-                },
-                valueRange = 0f..(durMs / 1000f).coerceAtLeast(1f),
-                colors = SliderDefaults.colors(
-                    thumbColor = Coral,
-                    activeTrackColor = Coral,
-                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(fmtMs(shownMs), style = MaterialTheme.typography.labelMedium, color = MutedInk)
-                Text(fmtMs(durMs), style = MaterialTheme.typography.labelMedium, color = MutedInk)
-            }
-
-            Spacer(Modifier.height(6.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onToggleShuffle) {
-                    Icon(
-                        imageVector = Icons.Filled.Shuffle,
-                        contentDescription = "Acak",
-                        tint = if (mirror.shuffle) Coral else FaintInk
                     )
-                }
-                IconButton(onClick = onPrev) {
-                    Icon(Icons.Filled.SkipPrevious, contentDescription = "Sebelumnya",
-                        tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(38.dp))
-                }
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 22.dp)
+                    .padding(bottom = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(74.dp)
-                        .shadow(18.dp, CircleShape, clip = false)
-                        .clip(CircleShape)
-                        .background(Brush.linearGradient(listOf(Coral, CoralBright)))
-                        .clickable(onClick = onPlayPause),
+                        .padding(top = 6.dp)
+                        .size(width = 40.dp, height = 4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
+                )
+
+                // --- bar atas: tutup • label • sleep ---
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            Icons.Filled.KeyboardArrowDown,
+                            contentDescription = "Tutup",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(30.dp)
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            "SEDANG DIPUTAR",
+                            style = MaterialTheme.typography.labelSmall,
+                            letterSpacing = 1.6.sp,
+                            color = MutedInk
+                        )
+                        if (sleepLabel != null) {
+                            Text(
+                                sleepLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Coral
+                            )
+                        }
+                    }
+                    Spacer(Modifier.weight(1f))
+                    IconButton(onClick = onSleep) {
+                        Icon(
+                            Icons.Filled.Timer,
+                            contentDescription = "Sleep timer",
+                            tint = if (sleepActive) Coral else FaintInk
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(6.dp))
+
+                // --- artwork besar ala Spotify ---
+                BoxWithConstraints(
+                    modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = if (mirror.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (mirror.playing) "Jeda" else "Putar",
-                        tint = Color(0xFF190902),
-                        modifier = Modifier.size(40.dp)
+                    val artSize = if (maxWidth > 340.dp) 340.dp else maxWidth
+                    Box(
+                        modifier = Modifier
+                            .size(artSize + 60.dp)
+                            .background(
+                                Brush.radialGradient(
+                                    listOf(Coral.copy(alpha = 0.16f), Color.Transparent)
+                                ),
+                                CircleShape
+                            )
+                    )
+                    AlbumArt(
+                        uri = mirror.artwork,
+                        size = artSize,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .aspectRatio(1f)
+                            .shadow(26.dp, RoundedCornerShape(12.dp), clip = false)
                     )
                 }
-                IconButton(onClick = onNext) {
-                    Icon(Icons.Filled.SkipNext, contentDescription = "Berikutnya",
-                        tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(38.dp))
+
+                Spacer(Modifier.height(22.dp))
+
+                // --- judul + artis (kiri) dan tombol hati (kanan) ---
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = mirror.title.ifBlank { "Belum ada lagu" },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            text = mirror.artist.ifBlank { "Artis tidak diketahui" },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MutedInk
+                        )
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    IconButton(onClick = onToggleFavorite, modifier = Modifier.size(44.dp)) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Filled.Favorite
+                            else Icons.Filled.FavoriteBorder,
+                            contentDescription = if (isFavorite) "Hapus favorit" else "Favorit",
+                            tint = if (isFavorite) Coral else FaintInk,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
                 }
-                IconButton(onClick = onToggleRepeat) {
-                    Icon(
-                        imageVector = if (mirror.repeat == androidx.media3.common.Player.REPEAT_MODE_ONE)
-                            Icons.Filled.RepeatOne else Icons.Filled.Repeat,
-                        contentDescription = "Ulangi",
-                        tint = if (mirror.repeat != androidx.media3.common.Player.REPEAT_MODE_OFF) Coral else FaintInk
+
+                Spacer(Modifier.height(10.dp))
+
+                // --- bar progres tipis khas Spotify (bisa digeser & diklik) ---
+                var dragMs by remember { mutableLongStateOf(-1L) }
+                val durMs = mirror.durationMs.coerceAtLeast(1L)
+                val livePos = progress.positionMs.longValue
+                val shownMs = if (dragMs >= 0L) dragMs else livePos
+                val frac = (shownMs.toFloat() / durMs.toFloat()).coerceIn(0f, 1f)
+                val trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.32f)
+
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(22.dp)
+                        .pointerInput(durMs) {
+                            detectTapGestures { off ->
+                                val f = (off.x / size.width.toFloat()).coerceIn(0f, 1f)
+                                controller?.seekTo((f * durMs).toLong())
+                            }
+                        }
+                        .pointerInput(durMs) {
+                            detectHorizontalDragGestures(
+                                onDragStart = { dragMs = progress.positionMs.longValue },
+                                onDragEnd = {
+                                    controller?.seekTo(dragMs.coerceAtLeast(0L))
+                                    dragMs = -1L
+                                },
+                                onDragCancel = { dragMs = -1L },
+                                onHorizontalDrag = { change, delta ->
+                                    change.consume()
+                                    val base = if (dragMs >= 0L) dragMs else progress.positionMs.longValue
+                                    val add = (delta / size.width.toFloat() * durMs.toFloat()).toLong()
+                                    dragMs = (base + add).coerceIn(0L, durMs)
+                                }
+                            )
+                        }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(trackColor)
                     )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .fillMaxWidth(frac)
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(Coral)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterStart)
+                            .offset(x = (maxWidth - 12.dp) * frac)
+                            .size(12.dp)
+                            .clip(CircleShape)
+                            .background(Coral)
+                    )
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(fmtMs(shownMs), style = MaterialTheme.typography.labelSmall, color = MutedInk)
+                    Text(fmtMs(durMs), style = MaterialTheme.typography.labelSmall, color = MutedInk)
+                }
+
+                Spacer(Modifier.height(6.dp))
+
+                // --- transport ala Spotify: acak • sebelum • play besar • sesudah • ulangi ---
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onToggleShuffle) {
+                        Icon(
+                            imageVector = Icons.Filled.Shuffle,
+                            contentDescription = "Acak",
+                            tint = if (mirror.shuffle) Coral else FaintInk,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                    IconButton(onClick = onPrev) {
+                        Icon(
+                            Icons.Filled.SkipPrevious,
+                            contentDescription = "Sebelumnya",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(42.dp)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(70.dp)
+                            .shadow(20.dp, CircleShape, clip = false)
+                            .clip(CircleShape)
+                            .background(Brush.linearGradient(listOf(Coral, CoralBright)))
+                            .clickable(onClick = onPlayPause),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (mirror.playing) Icons.Filled.Pause
+                            else Icons.Filled.PlayArrow,
+                            contentDescription = if (mirror.playing) "Jeda" else "Putar",
+                            tint = Color(0xFF190902),
+                            modifier = Modifier.size(38.dp)
+                        )
+                    }
+                    IconButton(onClick = onNext) {
+                        Icon(
+                            Icons.Filled.SkipNext,
+                            contentDescription = "Berikutnya",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(42.dp)
+                        )
+                    }
+                    IconButton(onClick = onToggleRepeat) {
+                        Icon(
+                            imageVector = if (mirror.repeat == androidx.media3.common.Player.REPEAT_MODE_ONE)
+                                Icons.Filled.RepeatOne else Icons.Filled.Repeat,
+                            contentDescription = "Ulangi",
+                            tint = if (mirror.repeat != androidx.media3.common.Player.REPEAT_MODE_OFF) Coral else FaintInk,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(4.dp))
+
+                // --- bar bawah: kecepatan • lirik • equalizer • antrian ---
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = Coral.copy(alpha = 0.14f),
+                        modifier = Modifier.clickable(onClick = onCycleSpeed)
+                    ) {
+                        Text(
+                            speedLabel,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Coral,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        )
+                    }
+                    IconButton(onClick = onOpenLyrics) {
+                        Icon(Icons.Filled.Lyrics, contentDescription = "Lirik", tint = FaintInk)
+                    }
+                    IconButton(onClick = onOpenEqualizer) {
+                        Icon(Icons.Filled.Equalizer, contentDescription = "Equalizer", tint = FaintInk)
+                    }
+                    IconButton(onClick = onOpenQueue) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.QueueMusic,
+                            contentDescription = "Antrian",
+                            tint = FaintInk
+                        )
+                    }
                 }
             }
-        }
         }
     }
 }
