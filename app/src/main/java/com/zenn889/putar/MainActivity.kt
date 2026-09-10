@@ -298,18 +298,62 @@ private fun Track.toMediaItem(): MediaItem =
 private fun currentMediaItemUri(c: MediaController?): String? =
     c?.currentMediaItem?.mediaId
 
-private fun sortedTracks(list: List<Track>, sort: SortOption): List<Track> =
-    when (sort) {
-        SortOption.JUDUL -> list.sortedBy { it.title.lowercase() }
-        SortOption.ARTIS -> list.sortedWith(
-            compareBy({ it.displayArtist.lowercase() }, { it.title.lowercase() })
-        )
-        SortOption.ALBUM -> list.sortedWith(
-            compareBy({ (it.albumTitle ?: "").lowercase() }, { it.title.lowercase() })
-        )
-        SortOption.TERBARU -> list.sortedByDescending { it.dateAddedMs }
-        SortOption.DURASI -> list.sortedBy { it.durationMs }
-    }
+/**
+ * Urutkan daftar lagu. `plays` (jumlah putar) dan `recency` (posisi di daftar
+ * terakhir diputar, 0 = paling baru) datang dari StatsStore dan hanya dipakai
+ * dua opsi terakhir.
+ */
+private fun sortedTracks(
+    list: List<Track>,
+    sort: SortOption,
+    plays: Map<String, Int> = emptyMap(),
+    recency: Map<String, Int> = emptyMap()
+): List<Track> = when (sort) {
+    SortOption.JUDUL -> list.sortedBy { it.title.lowercase() }
+    SortOption.JUDUL_ZA -> list.sortedByDescending { it.title.lowercase() }
+    SortOption.ARTIS -> list.sortedWith(
+        compareBy({ it.displayArtist.lowercase() }, { it.title.lowercase() })
+    )
+    SortOption.ALBUM -> list.sortedWith(
+        compareBy({ (it.albumTitle ?: "").lowercase() }, { it.title.lowercase() })
+    )
+    SortOption.TERBARU -> list.sortedByDescending { it.dateAddedMs }
+    SortOption.TERLAMA -> list.sortedBy { it.dateAddedMs }
+    SortOption.DURASI -> list.sortedBy { it.durationMs }
+    SortOption.DURASI_PANJANG -> list.sortedByDescending { it.durationMs }
+    SortOption.SERING -> list.sortedWith(
+        compareByDescending<Track> { plays[it.contentUri.toString()] ?: 0 }
+            .thenBy { it.title.lowercase() }
+    )
+    SortOption.TERAKHIR -> list.sortedWith(
+        compareBy<Track> { recency[it.contentUri.toString()] ?: Int.MAX_VALUE }
+            .thenBy { it.title.lowercase() }
+    )
+}
+
+/* ---------- pencarian: abaikan huruf besar/kecil & tanda diakritik ---------- */
+
+private fun normText(s: String): String =
+    java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "")
+        .lowercase()
+
+/** Kata kunci dipecah jadi token: "sheila adu" menemukan "Adu - Sheila On 7". */
+private fun searchTokens(q: String): List<String> =
+    normText(q).split(' ', '\t', '\n').filter { it.isNotBlank() }
+
+private fun matchesTokens(text: String, tokens: List<String>): Boolean {
+    if (tokens.isEmpty()) return true
+    val hay = normText(text)
+    return tokens.all { hay.contains(it) }
+}
+
+/** Cari di judul, artis, album, dan folder sekaligus. */
+private fun Track.matchesQuery(tokens: List<String>): Boolean =
+    matchesTokens(
+        listOfNotNull(title, displayArtist, albumTitle, folder).joinToString(" "),
+        tokens
+    )
 
 private fun buildAlbumsFrom(tracks: List<Track>): List<Album> =
     tracks.filter { it.albumId != null }
@@ -508,7 +552,23 @@ fun PlayerApp() {
     val libraryAlbums = remember(library) { buildAlbumsFrom(library) }
     var favUris by remember { mutableStateOf(FavStore.load(context)) }
     var playlists by remember { mutableStateOf(PlaylistStore.list(context)) }
-    var sortChoice by remember { mutableStateOf(SortOption.JUDUL) }
+    var sortChoice by remember {
+        // ingat pilihan sortir terakhir (tersimpan di putar_prefs)
+        val saved = context.getSharedPreferences("putar_prefs", Context.MODE_PRIVATE)
+            .getString("sort_choice", null)
+        mutableStateOf(
+            SortOption.entries.firstOrNull { it.name == saved } ?: SortOption.JUDUL
+        )
+    }
+
+    /** Ganti sortir + simpan pilihannya supaya menempel saat app dibuka lagi. */
+    fun setSort(opt: SortOption) {
+        sortChoice = opt
+        context.getSharedPreferences("putar_prefs", Context.MODE_PRIVATE)
+            .edit()
+            .putString("sort_choice", opt.name)
+            .apply()
+    }
 
     // antrian (lihat/urut/hapus)
     var showQueue by remember { mutableStateOf(false) }
@@ -578,53 +638,52 @@ fun PlayerApp() {
     val folderItems = remember(library) { buildFolderItems(library) }
 
     val q = query.trim()
-    val rootSongs = remember(library, q, sortChoice) {
-        val base = if (q.isEmpty()) library
-        else library.filter {
-            it.title.contains(q, ignoreCase = true) ||
-                it.displayArtist.contains(q, ignoreCase = true)
-        }
-        sortedTracks(base, sortChoice)
+    // pencarian: dipecah jadi token, urutan kata bebas, diakritik diabaikan
+    val tokens = remember(q) { searchTokens(q) }
+    // statistik untuk opsi sortir "paling sering diputar" & "terakhir diputar"
+    val playsMap = remember(library, statsVersion) { StatsStore.playsMap(context) }
+    val recencyMap = remember(library, statsVersion) {
+        StatsStore.recent(context).withIndex().associate { (i, uri) -> uri to i }
     }
-    val rootAlbums = remember(libraryAlbums, q) {
-        if (q.isEmpty()) libraryAlbums
-        else libraryAlbums.filter {
-            it.title.contains(q, ignoreCase = true) ||
-                it.displayArtist.contains(q, ignoreCase = true)
-        }
+    val rootSongs = remember(library, tokens, sortChoice, playsMap, recencyMap) {
+        val base = if (tokens.isEmpty()) library else library.filter { it.matchesQuery(tokens) }
+        sortedTracks(base, sortChoice, playsMap, recencyMap)
     }
-    val rootArtists = remember(artistItems, q) {
-        if (q.isEmpty()) artistItems
-        else artistItems.filter { it.first.contains(q, ignoreCase = true) }
+    val rootAlbums = remember(libraryAlbums, tokens) {
+        if (tokens.isEmpty()) libraryAlbums
+        else libraryAlbums.filter { matchesTokens("${it.title} ${it.displayArtist}", tokens) }
     }
-    val rootFolders = remember(folderItems, q) {
-        if (q.isEmpty()) folderItems
-        else folderItems.filter {
-            it.name.contains(q, ignoreCase = true) || it.path.contains(q, ignoreCase = true)
-        }
+    val rootArtists = remember(artistItems, tokens) {
+        if (tokens.isEmpty()) artistItems
+        else artistItems.filter { matchesTokens(it.first, tokens) }
     }
-    val rootVideos = remember(videos, q) {
-        if (q.isEmpty()) videos
-        else videos.filter { it.title.contains(q, ignoreCase = true) }
+    val rootFolders = remember(folderItems, tokens) {
+        if (tokens.isEmpty()) folderItems
+        else folderItems.filter { matchesTokens("${it.name} ${it.path}", tokens) }
+    }
+    val rootVideos = remember(videos, tokens) {
+        if (tokens.isEmpty()) videos
+        else videos.filter { matchesTokens(it.title, tokens) }
     }
     val favTracks = remember(library, favUris) {
         library.filter { favUris.contains(it.contentUri.toString()) }
     }
-    val favQueryTracks = remember(favTracks, q, sortChoice) {
-        val base = if (q.isEmpty()) favTracks
-        else favTracks.filter {
-            it.title.contains(q, ignoreCase = true) ||
-                it.displayArtist.contains(q, ignoreCase = true)
-        }
-        sortedTracks(base, sortChoice)
+    val favQueryTracks = remember(favTracks, tokens, sortChoice, playsMap, recencyMap) {
+        val base = if (tokens.isEmpty()) favTracks else favTracks.filter { it.matchesQuery(tokens) }
+        sortedTracks(base, sortChoice, playsMap, recencyMap)
     }
 
-    // daftar detail
-    val detailSongs = when {
-        selAlbum != null -> library.filter { it.albumId != null && it.albumId == selAlbum!!.albumId }
-        selArtist != null -> library.filter { it.displayArtist == selArtist }
-        selFolder != null -> library.filter { it.folder.orEmpty() == selFolder }
-        else -> emptyList()
+    // daftar detail (album / artis / folder) — ikut aturan sortir yang aktif
+    val detailSongs = remember(
+        library, selAlbum, selArtist, selFolder, sortChoice, playsMap, recencyMap
+    ) {
+        val base = when {
+            selAlbum != null -> library.filter { it.albumId != null && it.albumId == selAlbum!!.albumId }
+            selArtist != null -> library.filter { it.displayArtist == selArtist }
+            selFolder != null -> library.filter { it.folder.orEmpty() == selFolder }
+            else -> emptyList()
+        }
+        sortedTracks(base, sortChoice, playsMap, recencyMap)
     }
 
     // sejarah & paling sering diputar (untuk beranda)
@@ -761,6 +820,11 @@ fun PlayerApp() {
     fun playlistRemoveTrack(name: String, uri: String) {
         PlaylistStore.removeTrack(context, name, uri)
         reloadPlaylists()
+    }
+
+    /** Geser lagu di dalam playlist (indeks mengikuti urutan di playlist itu). */
+    fun playlistMoveTrack(name: String, from: Int, to: Int) {
+        if (PlaylistStore.moveTrack(context, name, from, to)) reloadPlaylists()
     }
 
     // auto-resume saat pustaka & controller siap
@@ -990,7 +1054,8 @@ fun PlayerApp() {
                                 BackBar(
                                     selAlbum!!.title,
                                     "${selAlbum!!.displayArtist} · ${selAlbum!!.songCount} lagu",
-                                    onBack = back
+                                    onBack = back,
+                                    trailing = { SortMenuButton(current = sortChoice, onSelect = { setSort(it) }) }
                                 )
                                 LibraryList(
                                     tracks = detailSongs,
@@ -1004,7 +1069,8 @@ fun PlayerApp() {
                                 BackBar(
                                     selArtist!!,
                                     "${detailSongs.size} lagu",
-                                    onBack = back
+                                    onBack = back,
+                                    trailing = { SortMenuButton(current = sortChoice, onSelect = { setSort(it) }) }
                                 )
                                 LibraryList(
                                     tracks = detailSongs,
@@ -1021,7 +1087,8 @@ fun PlayerApp() {
                                     if (f != null)
                                         (f.path.ifBlank { "Penyimpanan utama" } + " · ${f.songCount} lagu")
                                     else "${detailSongs.size} lagu",
-                                    onBack = back
+                                    onBack = back,
+                                    trailing = { SortMenuButton(current = sortChoice, onSelect = { setSort(it) }) }
                                 )
                                 LibraryList(
                                     tracks = detailSongs,
@@ -1055,7 +1122,7 @@ fun PlayerApp() {
                             onTabSelect = { tab = it },
                             showSort = tab == LibraryTab.LAGU || tab == LibraryTab.FAVORIT,
                             sortChoice = sortChoice,
-                            onSortChange = { sortChoice = it }
+                            onSortChange = { setSort(it) }
                         )
                         when (tab) {
                             LibraryTab.LAGU -> if (rootSongs.isEmpty()) {
@@ -1411,6 +1478,7 @@ fun PlayerApp() {
             onDelete = ::playlistDelete,
             onPlay = ::playlistPlay,
             onRemoveTrack = ::playlistRemoveTrack,
+            onMoveTrack = ::playlistMoveTrack,
             onDismiss = { showPlaylistBrowser = false }
         )
     }

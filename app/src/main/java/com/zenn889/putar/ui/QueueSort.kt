@@ -53,10 +53,15 @@ import com.zenn889.putar.ui.theme.MutedInk
 
 enum class SortOption(val label: String) {
     JUDUL("Judul A-Z"),
+    JUDUL_ZA("Judul Z-A"),
     ARTIS("Artis"),
     ALBUM("Album"),
-    TERBARU("Terbaru"),
-    DURASI("Durasi")
+    TERBARU("Terbaru ditambahkan"),
+    TERLAMA("Terlama ditambahkan"),
+    DURASI("Durasi terpendek"),
+    DURASI_PANJANG("Durasi terpanjang"),
+    SERING("Paling sering diputar"),
+    TERAKHIR("Terakhir diputar")
 }
 
 @Composable

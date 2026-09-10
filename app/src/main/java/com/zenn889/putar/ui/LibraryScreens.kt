@@ -193,7 +193,12 @@ fun FolderRow(item: FolderItem, onClick: () -> Unit) {
 }
 
 @Composable
-fun BackBar(title: String, subtitle: String? = null, onBack: () -> Unit) {
+fun BackBar(
+    title: String,
+    subtitle: String? = null,
+    onBack: () -> Unit,
+    trailing: (@Composable () -> Unit)? = null
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -225,6 +230,7 @@ fun BackBar(title: String, subtitle: String? = null, onBack: () -> Unit) {
                 )
             }
         }
+        trailing?.invoke()
     }
 }
 

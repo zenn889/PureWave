@@ -115,3 +115,5 @@ emulator Android tidak bisa dipakai — PiP & widget tetap **perlu tes di HP**.
    mesin hilang = rilis berikutnya tidak bisa menimpa versi terpasang.
 
 Sudah selesai: PiP bersih (#9) dan progres di widget (#12) — v2.16.0.
+Urut-ulang lagu di playlist, sortir 10 pilihan (tersimpan), dan pencarian
+token/diakritik — v2.17.0.

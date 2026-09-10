@@ -10,6 +10,11 @@ Music player Android **native** (Kotlin + Jetpack Compose + Media3/ExoPlayer).
 Memutar semua musik dari penyimpanan internal HP. **Tanpa internet, tanpa
 akun, tanpa iklan.**
 
+> **v2.17.0**: urutkan lagu di dalam playlist (seret gagang atau tombol
+> naik/turun), sortir jadi 10 pilihan (termasuk tersimpan & berlaku juga di
+> daftar album/artis/folder), dan pencarian lebih pintar (kata tidak perlu
+> berurutan, mencakup judul/artis/album/folder, diakritik diabaikan).
+>
 > **v2.16.0**: Picture-in-Picture bersih (overlay kontrol otomatis hilang
 > saat jendela mengecil) + widget layar utama kini menampilkan bar progres
 > dan waktu lagu.
@@ -33,14 +38,19 @@ akun, tanpa iklan.**
   siklus 0.5/0.75/1/1.25/1.5/2×).
 - **Sleep timer** kini juga punya mode "Setelah lagu ini selesai".
 - **Mini player** menampilkan progress tipis di bawah bar.
-- **Sortir lengkap** di tab Lagu & Favorit: Judul A-Z, Artis, Album,
-  Terbaru, Durasi.
+- **Sortir lengkap** (pilihannya diingat): Judul A-Z, Judul Z-A, Artis,
+  Album, Terbaru ditambahkan, Terlama ditambahkan, Durasi terpendek,
+  Durasi terpanjang, Paling sering diputar, Terakhir diputar — berlaku di
+  tab Lagu, Favorit, dan daftar album/artis/folder.
 - **Menu konteks** (tekan lama pada lagu): putar sekarang / berikutnya,
   tambah ke antrian, tandai favorit, tambah ke playlist.
 - **Favorit**: tab Favorit + tombol hati di layar pemutar penuh.
 - **Playlist**: buat & kelola (dari Setelan), tambah lewat menu konteks,
-  hapus lagu dari playlist, putar langsung — tersimpan permanen.
-- **Pencarian** di setiap tab (lagu/album/artis/folder).
+  urutkan lagunya sesuka hati (seret gagang atau tombol naik/turun), hapus
+  lagu dari playlist, putar langsung — tersimpan permanen.
+- **Pencarian** di setiap tab: kata boleh tidak berurutan ("sheila adu" ketemu
+  "Adu · Sheila On 7"), mencari di judul, artis, album, dan folder sekaligus,
+  dan mengabaikan tanda diakritik.
 - **Album art asli** dari metadata file (Coil).
 - **Pemutar sesungguhnya (Media3/ExoPlayer)**: play/pause, next/prev, seek,
   shuffle, repeat (off/semua/satu), "Acak semua" satu ketukan.

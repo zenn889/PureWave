@@ -3,6 +3,7 @@ package com.zenn889.putar.ui
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,14 +14,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
@@ -48,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -215,6 +220,7 @@ fun PlaylistBrowserSheet(
     onDelete: (String) -> Unit,
     onPlay: (String) -> Unit,
     onRemoveTrack: (String, String) -> Unit,
+    onMoveTrack: (String, Int, Int) -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -291,7 +297,9 @@ fun PlaylistBrowserSheet(
             if (pl == null) {
                 openName = null
             } else {
-                val songs = pl.uris.mapNotNull { byUri[it] }
+                // pasangan (indeks urutan di playlist, lagu): pengurutan tetap
+                // benar walau ada lagu yang sudah hilang dari perangkat
+                val songs = pl.uris.mapIndexedNotNull { i, uri -> byUri[uri]?.let { i to it } }
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(start = 6.dp, end = 20.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -324,16 +332,49 @@ fun PlaylistBrowserSheet(
                     )
                 }
                 LazyColumn(Modifier.padding(bottom = 16.dp)) {
-                    items(songs, key = { it.contentUri.toString() }) { track ->
+                    itemsIndexed(songs, key = { i, e -> "$i|${e.second.contentUri}" }) { index, entry ->
+                        val uriIndex = entry.first
+                        val track = entry.second
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable { onPlay(pl.name) }
-                                .padding(horizontal = 20.dp, vertical = 5.dp),
+                                .padding(start = 8.dp, end = 20.dp, top = 5.dp, bottom = 5.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            AlbumArt(MusicRepository.albumArtUri(track.albumId), size = 42.dp)
-                            Spacer(Modifier.width(12.dp))
+                            // gagang seret: geser vertikal untuk mengubah urutan
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .pointerInput(uriIndex, songs.size) {
+                                        var acc = 0f
+                                        detectVerticalDragGestures(
+                                            onDragEnd = { acc = 0f },
+                                            onDragCancel = { acc = 0f },
+                                            onVerticalDrag = { _, d ->
+                                                acc += d
+                                                while (acc <= -150f) {
+                                                    onMoveTrack(pl.name, uriIndex, uriIndex - 1)
+                                                    acc += 150f
+                                                }
+                                                while (acc >= 150f) {
+                                                    onMoveTrack(pl.name, uriIndex, uriIndex + 1)
+                                                    acc -= 150f
+                                                }
+                                            }
+                                        )
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Filled.DragHandle,
+                                    contentDescription = "Ubah urutan lagu",
+                                    tint = FaintInk,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            AlbumArt(MusicRepository.albumArtUri(track.albumId), size = 40.dp)
+                            Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(track.title, maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
@@ -342,6 +383,20 @@ fun PlaylistBrowserSheet(
                                 Text(track.displayArtist, maxLines = 1,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MutedInk)
+                            }
+                            IconButton(
+                                onClick = { onMoveTrack(pl.name, uriIndex, uriIndex - 1) },
+                                enabled = index > 0
+                            ) {
+                                Icon(Icons.Filled.KeyboardArrowUp,
+                                    contentDescription = "Naikkan urutan", tint = FaintInk)
+                            }
+                            IconButton(
+                                onClick = { onMoveTrack(pl.name, uriIndex, uriIndex + 1) },
+                                enabled = index < songs.size - 1
+                            ) {
+                                Icon(Icons.Filled.KeyboardArrowDown,
+                                    contentDescription = "Turunkan urutan", tint = FaintInk)
                             }
                             IconButton(onClick = {
                                 onRemoveTrack(pl.name, track.contentUri.toString())

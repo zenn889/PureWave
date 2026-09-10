@@ -62,6 +62,23 @@ object PlaylistStore {
         save(c, updated)
     }
 
+    /**
+     * Geser satu lagu di dalam playlist (dipakai gagang seret & tombol
+     * naik/turun). `from`/`to` adalah indeks pada daftar URI playlist itu.
+     * Mengembalikan true kalau urutannya benar-benar berubah.
+     */
+    fun moveTrack(c: Context, name: String, from: Int, to: Int): Boolean {
+        val items = list(c)
+        val target = items.firstOrNull { it.name == name } ?: return false
+        if (from !in target.uris.indices) return false
+        val dest = to.coerceIn(0, target.uris.size - 1)
+        if (from == dest) return false
+        val moved = target.uris.toMutableList()
+        moved.add(dest, moved.removeAt(from))
+        save(c, items.map { if (it.name == name) it.copy(uris = moved) else it })
+        return true
+    }
+
     /** Ganti seluruh isi (dipakai restore cadangan). */
     fun replaceAll(c: Context, playlists: List<Playlist>) {
         save(c, playlists)
