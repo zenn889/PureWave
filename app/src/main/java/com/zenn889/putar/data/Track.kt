@@ -15,7 +15,9 @@ data class Track(
     /** nama album (utk sortir) */
     val albumTitle: String? = null,
     /** epoch millis saat file ditambahkan (utk sortir terbaru) */
-    val dateAddedMs: Long = 0L
+    val dateAddedMs: Long = 0L,
+    /** path file fisik (utk mencari .lrc di sebelah lagu); null bila tak tersedia */
+    val filePath: String? = null
 ) {
     val displayArtist: String
         get() = artist.ifBlank { "Artis tak dikenal" }

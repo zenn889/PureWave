@@ -34,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Lyrics
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -349,6 +350,7 @@ fun NowPlayingSheet(
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
     onOpenQueue: () -> Unit,
+    onOpenLyrics: () -> Unit,
     speedLabel: String,
     onCycleSpeed: () -> Unit
 ) {
@@ -424,6 +426,13 @@ fun NowPlayingSheet(
                     )
                 }
                 Spacer(Modifier.weight(1f))
+                IconButton(onClick = onOpenLyrics) {
+                    Icon(
+                        Icons.Filled.Lyrics,
+                        contentDescription = "Lirik",
+                        tint = FaintInk
+                    )
+                }
                 IconButton(onClick = onToggleFavorite) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Filled.Favorite

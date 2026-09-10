@@ -24,6 +24,8 @@ class MusicRepository(private val context: Context) {
             add(MediaStore.Audio.Media.ALBUM_ID)
             add(MediaStore.Audio.Media.ALBUM)
             add(MediaStore.Audio.Media.DATE_ADDED)
+            @Suppress("DEPRECATION")
+            add(MediaStore.MediaColumns.DATA)
             add(if (useRelative) MediaStore.MediaColumns.RELATIVE_PATH else MediaStore.MediaColumns.DATA)
         }.toTypedArray()
         val selection = "${MediaStore.Audio.Media.DURATION} > 3000" // buang bunyi < 3 detik
@@ -37,6 +39,7 @@ class MusicRepository(private val context: Context) {
                 val iAlbum = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
                 val iAlbumName = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
                 val iDate = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+                val iData = c.getColumnIndex(MediaStore.MediaColumns.DATA)
                 val iFolder = c.getColumnIndexOrThrow(
                     if (useRelative) MediaStore.MediaColumns.RELATIVE_PATH
                     else MediaStore.MediaColumns.DATA
@@ -68,7 +71,8 @@ class MusicRepository(private val context: Context) {
                             albumId = albumId,
                             folder = folder,
                             albumTitle = c.getString(iAlbumName),
-                            dateAddedMs = if (c.isNull(iDate)) 0L else c.getLong(iDate) * 1000L
+                            dateAddedMs = if (c.isNull(iDate)) 0L else c.getLong(iDate) * 1000L,
+                            filePath = if (iData >= 0) c.getString(iData)?.takeIf { it.isNotEmpty() } else null
                         )
                     )
                 }
@@ -124,13 +128,16 @@ class MusicRepository(private val context: Context) {
                 MediaStore.Video.Media.DURATION,
                 MediaStore.Video.Media.DATE_ADDED
             )
+            @Suppress("DEPRECATION")
+            val projectionData = projection + MediaStore.MediaColumns.DATA
             context.contentResolver.query(
-                collection, projection, null, null, null
+                collection, projectionData, null, null, null
             )?.use { c ->
                 val iId = c.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
                 val iTitle = c.getColumnIndexOrThrow(MediaStore.Video.Media.TITLE)
                 val iDur = c.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
                 val iDate = c.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_ADDED)
+                val iData = c.getColumnIndex(MediaStore.MediaColumns.DATA)
                 while (c.moveToNext()) {
                     val id = c.getLong(iId)
                     val uri = ContentUris.withAppendedId(collection, id)
@@ -145,7 +152,8 @@ class MusicRepository(private val context: Context) {
                             title = title,
                             durationMs = dur,
                             dateAddedMs = c.getLong(iDate) * 1000L,
-                            folder = null
+                            folder = null,
+                            filePath = if (iData >= 0) c.getString(iData)?.takeIf { it.isNotEmpty() } else null
                         )
                     )
                 }

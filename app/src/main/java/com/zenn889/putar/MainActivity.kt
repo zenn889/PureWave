@@ -1,12 +1,15 @@
 package com.zenn889.putar
 
 import android.Manifest
+import android.app.PictureInPictureParams
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
+import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -81,6 +84,7 @@ import androidx.media3.session.SessionToken
 import com.zenn889.putar.data.Album
 import com.zenn889.putar.data.BackupStore
 import com.zenn889.putar.data.FavStore
+import com.zenn889.putar.data.LyricsLoader
 import com.zenn889.putar.data.MusicRepository
 import com.zenn889.putar.data.Playlist
 import com.zenn889.putar.data.PlaylistStore
@@ -100,6 +104,7 @@ import com.zenn889.putar.ui.LibraryFilterDialog
 import com.zenn889.putar.ui.LibraryList
 import com.zenn889.putar.ui.LibraryTab
 import com.zenn889.putar.ui.LibraryTabBar
+import com.zenn889.putar.ui.LyricsSheet
 import com.zenn889.putar.ui.MiniPlayer
 import com.zenn889.putar.ui.NowPlayingSheet
 import com.zenn889.putar.ui.PlaylistBrowserSheet
@@ -117,6 +122,7 @@ import com.zenn889.putar.ui.StatsDialog
 import com.zenn889.putar.ui.TrackContextSheet
 import com.zenn889.putar.ui.TrackRow
 import com.zenn889.putar.ui.TrackStrip
+import com.zenn889.putar.ui.VideoPlayback
 import com.zenn889.putar.ui.VideoPlayerScreen
 import com.zenn889.putar.ui.VideoRow
 import com.zenn889.putar.ui.WelcomeScreen
@@ -142,12 +148,51 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         installCrashLogger(this)
         enableEdgeToEdge()
+        handleOpenIntent(intent)
         setContent {
             PutarTheme {
                 PlayerApp()
             }
         }
     }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleOpenIntent(intent)
+    }
+
+    /** Terima "buka dengan PureWave" dari File Manager / aplikasi lain. */
+    private fun handleOpenIntent(intent: android.content.Intent?) {
+        val data = intent?.data ?: return
+        if (intent.action == android.content.Intent.ACTION_VIEW) {
+            OpenRequest.uri = data
+            OpenRequest.token.value += 1
+        }
+    }
+
+    /** Video jalan + user tekan Home → masuk Picture-in-Picture. */
+    override fun onUserLeaveHint() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            VideoPlayback.active && VideoPlayback.playing
+        ) {
+            runCatching {
+                val a = VideoPlayback.aspect
+                val ratio = if (a >= 1f) Rational((a * 100).toInt(), 100)
+                else Rational(100, (100 / a).toInt())
+                enterPictureInPictureMode(
+                    PictureInPictureParams.Builder().setAspectRatio(ratio).build()
+                )
+            }
+        }
+        super.onUserLeaveHint()
+    }
+}
+
+/** Permintaan buka file dari luar app. */
+object OpenRequest {
+    val token = androidx.compose.runtime.mutableStateOf(0)
+    var uri: android.net.Uri? = null
 }
 
 /** Catat crash ke <app>/files/crash.txt supaya gampang dilaporkan. */
@@ -191,6 +236,23 @@ private fun Context.hasAllMediaPermission(): Boolean =
 fun Context.versionName(): String =
     runCatching { packageManager.getPackageInfo(packageName, 0).versionName }
         .getOrNull() ?: ""
+
+/** Bangun Track minimal dari URI eksternal (buka-dengan dari app lain). */
+private fun buildTrackFromUri(context: Context, uri: Uri): Track? = runCatching {
+    val name = context.contentResolver.query(
+        uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null
+    )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+    val title = name?.substringBeforeLast('.')?.takeIf { it.isNotBlank() } ?: "Audio"
+    Track(
+        mediaId = 0L,
+        contentUri = uri,
+        title = title,
+        artist = "",
+        durationMs = 0L,
+        albumId = null,
+        folder = null
+    )
+}.getOrNull()
 
 private fun greetingLine(): String {
     val h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
@@ -298,6 +360,8 @@ fun PlayerApp() {
         return
     }
 
+    Box(Modifier.fillMaxSize()) {
+
     // --- kontrol pemutar (Media3) ---
     var controller by remember { mutableStateOf<MediaController?>(null) }
     var mirror by remember { mutableStateOf(PlayerMirror()) }
@@ -306,6 +370,10 @@ fun PlayerApp() {
     // pelacak pemutaran untuk statistik & sejarah
     var lastPlayUri by remember { mutableStateOf<String?>(null) }
     var statsVersion by remember { mutableLongStateOf(0L) }
+    // pemutar video
+    var videoQueue by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
+    var videoIndex by remember { mutableStateOf(0) }
+    var showVideoPlayer by remember { mutableStateOf(false) }
 
     DisposableEffect(context) {
         var released = false
@@ -664,6 +732,37 @@ fun PlayerApp() {
     }
 
     // auto-resume saat pustaka & controller siap
+    // buka file dari luar app ("Buka dengan PureWave")
+    LaunchedEffect(granted, controller, OpenRequest.token.value) {
+        val uri = OpenRequest.uri ?: return@LaunchedEffect
+        if (!granted || controller == null) return@LaunchedEffect
+        OpenRequest.uri = null
+        val mime = runCatching { context.contentResolver.getType(uri) }.getOrNull().orEmpty()
+        if (mime.startsWith("video/")) {
+            val name = runCatching {
+                context.contentResolver.query(
+                    uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null
+                )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+            }.getOrNull()
+            val v = VideoItem(
+                mediaId = 0L,
+                contentUri = uri,
+                title = name?.substringBeforeLast('.')?.takeIf { it.isNotBlank() } ?: "Video",
+                durationMs = 0L,
+                dateAddedMs = 0L,
+                folder = null,
+                filePath = null
+            )
+            controller?.pause()
+            videoQueue = listOf(v)
+            videoIndex = 0
+            showVideoPlayer = true
+        } else {
+            val track = buildTrackFromUri(context, uri)
+            if (track != null) playList(listOf(track), 0, false)
+        }
+    }
+
     LaunchedEffect(granted, controller != null, tracks.isEmpty().not(), restoredApplied) {
         if (granted && controller != null && tracks.isNotEmpty() && !restoredApplied) {
             restoredApplied = true
@@ -763,9 +862,19 @@ fun PlayerApp() {
     var showSettings by remember { mutableStateOf(false) }
     var showFilters by remember { mutableStateOf(false) }
     var showStats by remember { mutableStateOf(false) }
-    var videoQueue by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
-    var videoIndex by remember { mutableStateOf(0) }
-    var showVideoPlayer by remember { mutableStateOf(false) }
+    var showLyrics by remember { mutableStateOf(false) }
+    var lyricsLines by remember { mutableStateOf<List<LyricsLoader.Line>>(emptyList()) }
+
+    // muat lirik .lrc untuk lagu aktif
+    LaunchedEffect(showLyrics, mirror.index) {
+        if (showLyrics) {
+            val uri = currentMediaItemUri(controller)
+            val t = uri?.let { songsByUri[it] }
+            lyricsLines = if (t != null) {
+                LyricsLoader.load(context, t.filePath, t.title, t.folder)
+            } else emptyList()
+        }
+    }
 
     // cadangkan / pulihkan data (SAF)
     val backupExport = rememberLauncherForActivityResult(
@@ -1088,6 +1197,7 @@ fun PlayerApp() {
                 refreshQueueEntries()
                 showQueue = true
             },
+            onOpenLyrics = { showLyrics = true },
             speedLabel = fmtSpeed(mirror.speed),
             onCycleSpeed = {
                 controller?.setPlaybackSpeed(nextSpeed(mirror.speed))
@@ -1169,6 +1279,16 @@ fun PlayerApp() {
             totalMinutes = totalMin,
             rows = rows,
             onDismiss = { showStats = false }
+        )
+    }
+
+    if (showLyrics) {
+        LyricsSheet(
+            title = mirror.title,
+            lines = lyricsLines,
+            progress = progressState,
+            onSeek = { ms -> controller?.seekTo(ms) },
+            onDismiss = { showLyrics = false }
         )
     }
 
@@ -1321,6 +1441,8 @@ fun PlayerApp() {
             onDismiss = { showSleepDialog = false }
         )
     }
+    }
+
 }
 
 @Composable

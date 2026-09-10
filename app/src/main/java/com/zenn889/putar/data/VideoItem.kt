@@ -9,5 +9,7 @@ data class VideoItem(
     val title: String,
     val durationMs: Long,
     val dateAddedMs: Long,
-    val folder: String?
+    val folder: String?,
+    /** path file fisik (utk subtitle & resume); null bila tak tersedia */
+    val filePath: String? = null
 )
