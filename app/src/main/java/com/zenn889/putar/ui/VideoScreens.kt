@@ -8,6 +8,7 @@ import android.os.Build
 import android.util.Rational
 import android.util.Size
 import android.view.ViewGroup
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -88,6 +89,27 @@ object VideoPlayback {
     @Volatile var active: Boolean = false
     @Volatile var playing: Boolean = false
     @Volatile var aspect: Float = 16f / 9f
+
+    /** true selama jendela Activity berada di mode Picture-in-Picture. */
+    val inPip = mutableStateOf(false)
+}
+
+/**
+ * Parameter Picture-in-Picture standar: rasio mengikuti video, dan di
+ * Android 12+ transisi dimatikan supaya gambar tidak melar saat mengecil.
+ * Pemanggil wajib sudah menjaga versi (PiP baru ada sejak Android 8/O).
+ */
+@RequiresApi(Build.VERSION_CODES.O)
+fun pipParams(aspect: Float): PictureInPictureParams {
+    val safe = if (aspect in 0.2f..5f) aspect else 16f / 9f
+    val ratio = if (safe >= 1f) Rational((safe * 100).toInt(), 100)
+    else Rational(100, (100 / safe).toInt())
+    val builder = PictureInPictureParams.Builder().setAspectRatio(ratio)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        builder.setAutoEnterEnabled(false)
+        builder.setSeamlessResizeEnabled(false)
+    }
+    return builder.build()
 }
 
 /* ---------- cache thumbnail video ---------- */
@@ -228,6 +250,7 @@ fun VideoPlayerScreen(
     var seeking by remember { mutableStateOf(false) }
     var subsOn by remember { mutableStateOf(true) }
     var aspect by remember { mutableFloatStateOf(16f / 9f) }
+    val inPip by VideoPlayback.inPip
 
     // subtitle di sebelah video (.srt / .vtt / .ttml)
     val subtitleFile = remember(item.contentUri) { LyricsLoader.subtitleFile(item.filePath) }
@@ -284,6 +307,9 @@ fun VideoPlayerScreen(
                 aspect = vs.width.toFloat() / vs.height.toFloat()
                 VideoPlayback.aspect = aspect
             }
+            // jaga status PiP tetap akurat walau callback activity terlewat
+            val pipNow = activity?.isInPictureInPictureMode == true
+            if (VideoPlayback.inPip.value != pipNow) VideoPlayback.inPip.value = pipNow
             sinceSave += 400
             if (sinceSave >= 4_000L) {
                 sinceSave = 0L
@@ -301,6 +327,11 @@ fun VideoPlayerScreen(
         dragMs = -1L
         controls = true
         seeking = false
+    }
+
+    // masuk PiP → semua kontrol disembunyikan; keluar PiP → muncul lagi
+    LaunchedEffect(inPip) {
+        controls = !inPip
     }
 
     LaunchedEffect(playing, controls, ended, seeking) {
@@ -328,13 +359,7 @@ fun VideoPlayerScreen(
     fun enterPip() {
         val act = activity ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            runCatching {
-                val ratio = if (aspect >= 1f) Rational((aspect * 100).toInt(), 100)
-                else Rational(100, (100 / aspect).toInt())
-                act.enterPictureInPictureMode(
-                    PictureInPictureParams.Builder().setAspectRatio(ratio).build()
-                )
-            }
+            runCatching { act.enterPictureInPictureMode(pipParams(aspect)) }
         }
     }
 
@@ -365,14 +390,16 @@ fun VideoPlayerScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // 2) penangkap ketukan
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable { controls = !controls }
-        )
+        // 2) penangkap ketukan (tidak aktif selama PiP)
+        if (!inPip) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { controls = !controls }
+            )
+        }
 
-        if (controls) {
+        if (controls && !inPip) {
             // 3) bar atas
             Box(
                 modifier = Modifier

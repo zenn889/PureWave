@@ -4,6 +4,13 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// Keystore rilis hanya ada di mesin yang memegang kuncinya. Kalau properti
+// belum di-set (mesin pengembangan baru), build DEBUG tetap jalan dan build
+// RILIS digagalkan oleh guardrail di bagian bawah file ini — supaya tidak
+// pernah ada APK rilis yang ditandatangani kunci lain (update pengguna
+// langsung gagal kalau tanda tangannya berbeda).
+val releaseStore = project.findProperty("putarStoreFile") as String?
+
 android {
     namespace = "com.zenn889.putar"
     compileSdk = 36
@@ -12,19 +19,18 @@ android {
         applicationId = "com.zenn889.putar"
         minSdk = 24
         targetSdk = 36
-        versionCode = 36
-        versionName = "2.15.0"
+        versionCode = 37
+        versionName = "2.16.0"
     }
 
     signingConfigs {
-        create("release") {
-            storeFile = file(
-                project.findProperty("putarStoreFile") as String?
-                    ?: error("putarStoreFile belum di-set di ~/.gradle/gradle.properties")
-            )
-            storePassword = project.findProperty("putarStorePass") as String?
-            keyAlias = project.findProperty("putarKeyAlias") as String? ?: "putar"
-            keyPassword = project.findProperty("putarKeyPass") as String?
+        if (releaseStore != null) {
+            create("release") {
+                storeFile = file(releaseStore)
+                storePassword = project.findProperty("putarStorePass") as String?
+                keyAlias = project.findProperty("putarKeyAlias") as String? ?: "putar"
+                keyPassword = project.findProperty("putarKeyPass") as String?
+            }
         }
     }
 
@@ -32,7 +38,9 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = signingConfigs.getByName("release")
+            if (releaseStore != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
@@ -48,6 +56,16 @@ android {
     }
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+    }
+}
+
+// Guardrail: APK rilis tidak boleh dibangun tanpa keystore asli.
+tasks.matching { it.name == "assembleRelease" || it.name == "bundleRelease" }.configureEach {
+    doFirst {
+        check(releaseStore != null) {
+            "putarStoreFile belum di-set di ~/.gradle/gradle.properties — APK rilis " +
+                "tidak boleh dibangun tanpa keystore asli (lihat docs/ARCHITECTURE.md)."
+        }
     }
 }
 

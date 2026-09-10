@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Equalizer
@@ -21,7 +22,6 @@ import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.AlertDialog
@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.pm.PackageInfoCompat
 import com.zenn889.putar.AudioFx
 import com.zenn889.putar.versionName
 import com.zenn889.putar.ui.theme.Coral
@@ -132,7 +133,7 @@ fun SettingsSheet(
                 onClick = onRestore
             )
             SettingsRow(
-                icon = Icons.Filled.PlaylistPlay,
+                icon = Icons.AutoMirrored.Filled.PlaylistPlay,
                 title = "Playlist",
                 subtitle = "Buat & kelola daftar putar",
                 onClick = onPlaylists
@@ -174,7 +175,9 @@ fun SettingsSheet(
     if (showAbout) {
         val version = context.versionName()
         val buildCode = runCatching {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionCode
+            PackageInfoCompat.getLongVersionCode(
+                context.packageManager.getPackageInfo(context.packageName, 0)
+            ).toInt()
         }.getOrNull() ?: 0
         val details = listOf(
             "Pemutar musik offline dari penyimpanan HP-mu sendiri.",

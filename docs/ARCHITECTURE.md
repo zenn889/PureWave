@@ -44,7 +44,10 @@ Inti aplikasi:
 - `PlaybackService.kt` — service Media3: player ExoPlayer, audio focus,
   pause saat headset dicabut, tempel EQ ke sesi audio, dorong info ke widget.
 - `AudioFx.kt` — Equalizer & BassBoost native (`android.media.audiofx`).
-- `PlayerWidget.kt` — widget home screen (RemoteViews) + snapshot lagu.
+- `PlayerWidget.kt` — widget home screen (RemoteViews): judul/artis, bar
+  progres + waktu, tombol prev/play/next. `push()` juga menyimpan snapshot ke
+  prefs `putar_widget`; kalau tidak ada widget terpasang, langsung keluar
+  (tanpa widget = nol biaya).
 
 Data (`data/`):
 - `Track.kt` / `VideoItem.kt` — model lagu & video (uri, judul, artist,
@@ -162,7 +165,34 @@ Subtitle: `LyricsLoader.subtitleFile()` lalu `MediaItem.SubtitleConfiguration`.
 Resume: `VideoPosStore`. PiP: tombol + `onUserLeaveHint()` di MainActivity,
 dan pemutar harus berada di window Activity (bukan Dialog) — sekarang sudah.
 
-### 4f. Ikon / logo
+PiP bersih (v2.16.0): `VideoPlayback.inPip` adalah state Compose tunggal
+yang menandai jendela sedang mengecil. Diisi dari dua arah — callback
+`onPictureInPictureModeChanged` di MainActivity, dan detak 400 ms video
+sebagai cadangan. Saat `inPip == true`, seluruh overlay (bar atas, tombol
+play tengah, slider + kontrol bawah) dan penangkap ketukan tidak
+dikomposisi, jadi yang tampil hanya gambar video. Keluar PiP → kontrol
+muncul lagi. Rasio jendela dibuat lewat `pipParams()` (dipakai bersama oleh
+tombol PiP dan `onUserLeaveHint`), yang di Android 12+ juga mematikan
+transisi supaya gambar tidak melar.
+
+### 4f. Widget pemutar (progres)
+Widget tidak punya event "posisi lagu berubah", jadi progres didorong:
+1. `PlaybackService.pushWidget(player)` mengirim judul, artis, status, posisi,
+   dan durasi ke `PlayerWidgetProvider.push()`.
+2. Dipanggil dari listener player (ganti lagu, play/pause) **dan** dari loop
+   `widgetScope.launch { while (isActive) { … delay(1_000) } }` selama lagu
+   berputar. Loop hidup selama service hidup dan berhenti di `onDestroy`.
+3. `PlayerWidget` menyimpan snapshot di prefs `putar_widget` lalu membangun
+   `RemoteViews`. Bar progres memakai skala 0..1000 (`setProgressBar`) dan
+   drawable sendiri (`res/drawable/widget_progress.xml`).
+4. Kalau tidak ada widget terpasang, `push()` langsung `return` — jadi
+   fitur ini gratis untuk pengguna yang tidak memakai widget.
+
+Menambah elemen di widget: tambah view di `res/layout/widget_player.xml`,
+lalu set lewat `RemoteViews`. Ingat: **id yang tidak ada di layout akan
+membuat RemoteViews gagal render** (bukan crash app, tapi widget kosong).
+
+### 4g. Ikon / logo
 - Adaptive icon (Android 8+): `res/drawable/ic_launcher_foreground.xml`
   (vector 108x108, mark saja) + `ic_launcher_background.xml` (gradien).
 - Android 7: PNG `mipmap-{mdpi..xxxhdpi}/ic_launcher*.png` — dibuat ulang
@@ -206,6 +236,11 @@ Catatan penting:
   Password di `~/.gradle/gradle.properties` (`putarStoreFile/Pass/KeyAlias/
   KeyPass`). Jangan di-commit. Password store & key HARUS sama untuk PKCS12,
   kalau beda → error "Given final block not properly padded".
+- **Di mesin tanpa keystore** (mis. clone baru): `./gradlew :app:assembleDebug`
+  jalan normal, tapi `assembleRelease`/`bundleRelease` digagalkan guardrail di
+  `app/build.gradle.kts` (cek properti `putarStoreFile`). Jangan pernah
+  mengakalinya dengan keystore tiruan: tanda tangan berbeda = pengguna harus
+  uninstall dulu (data favorit/playlist hilang).
 - Tanda tangan tetap sama sejak v2.7.0 → user bisa update tanpa hapus data.
 - `versionCode` harus selalu naik, kalau tidak akan ditolak saat update.
 
@@ -242,6 +277,13 @@ Catatan penting:
 10. **Bug crash user**: app menulis
     `Android/data/com.zenn889.putar/files/crash.txt` dan `eq.log` — minta
     user mengirim isinya.
+11. **Keystore di blok `signingConfigs`**: properti `putarStoreFile` dulu
+    dipanggil `error()` saat konfigurasi, jadi build **debug** pun gagal di
+    mesin yang tidak memegang keystore. Sekarang `signingConfigs`/`buildTypes`
+    dibuat kondisional dan hanya task rilis yang dijaga (v2.16.0).
+12. **Id RemoteViews**: menambah view di layout widget tanpa menambah setter di
+    `PlayerWidget.views()` (atau sebaliknya) membuat widget tampil kosong —
+    bukan crash, jadi gampang lolos. Cek dengan memasang widget di HP.
 
 ---
 

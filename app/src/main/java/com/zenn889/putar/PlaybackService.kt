@@ -7,16 +7,27 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 /**
  * Service pemutar (Media3/ExoPlayer). Menyediakan:
  * - pemutaran tetap jalan saat app di latar belakang,
  * - kontrol di notifikasi & lock screen,
- * - audio focus + "becoming noisy" (headset dicabut -> pause).
+ * - audio focus + "becoming noisy" (headset dicabut -> pause),
+ * - dorongan info + progres lagu ke widget home screen.
  */
 class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
+
+    /** Berjalan selama service hidup; dipakai untuk detak progres widget. */
+    private val widgetScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     override fun onCreate() {
         super.onCreate()
@@ -53,13 +64,7 @@ class PlaybackService : MediaSessionService() {
                                 Player.EVENT_MEDIA_ITEM_TRANSITION
                             )
                         ) {
-                            val meta = player.mediaMetadata
-                            PlayerWidgetProvider.push(
-                                applicationContext,
-                                meta.title?.toString() ?: "PureWave",
-                                meta.artist?.toString().orEmpty().ifEmpty { "Pemutar offline" },
-                                player.isPlaying
-                            )
+                            pushWidget(player)
                         }
                     }
                 })
@@ -72,6 +77,30 @@ class PlaybackService : MediaSessionService() {
             AudioFx.attach(this, fixedSession)
         }
         mediaSession = MediaSession.Builder(this, player).build()
+
+        // Progres di widget tidak punya event — ia berjalan terus. Jadi kita
+        // dorong ~1x/detik selama lagu berputar. `pushWidget` langsung keluar
+        // kalau widget belum pernah dipasang, jadi tanpa widget = nol biaya.
+        widgetScope.launch {
+            while (isActive) {
+                val p = mediaSession?.player
+                if (p != null && p.isPlaying) pushWidget(p)
+                delay(1_000)
+            }
+        }
+    }
+
+    /** Kirim judul, artis, status, dan posisi lagu ke widget. */
+    private fun pushWidget(player: Player) {
+        val meta = player.mediaMetadata
+        PlayerWidgetProvider.push(
+            applicationContext,
+            meta.title?.toString() ?: "PureWave",
+            meta.artist?.toString().orEmpty().ifEmpty { "Pemutar offline" },
+            player.isPlaying,
+            player.currentPosition.coerceAtLeast(0L),
+            player.duration.coerceAtLeast(0L)
+        )
     }
 
     /** Panggil dari UI: tempel ulang efek ke sesi yang sedang berjalan. */
@@ -114,6 +143,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     override fun onDestroy() {
+        widgetScope.cancel()
         AudioFx.release()
         instance = null
         mediaSession?.run {

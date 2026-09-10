@@ -3,7 +3,7 @@
     android:description="@string/app_name"
     android:initialLayout="@layout/widget_player"
     android:minWidth="250dp"
-    android:minHeight="48dp"
+    android:minHeight="64dp"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />

@@ -1,15 +1,14 @@
 package com.zenn889.putar
 
 import android.Manifest
-import android.app.PictureInPictureParams
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
-import android.util.Rational
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -141,6 +140,7 @@ import com.zenn889.putar.ui.WelcomeScreen
 import com.zenn889.putar.ui.buildArtistItems
 import com.zenn889.putar.ui.buildFolderItems
 import com.zenn889.putar.ui.fmtMs
+import com.zenn889.putar.ui.pipParams
 import com.zenn889.putar.ui.toast
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.CoralBright
@@ -188,16 +188,22 @@ class MainActivity : ComponentActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
             VideoPlayback.active && VideoPlayback.playing
         ) {
-            runCatching {
-                val a = VideoPlayback.aspect
-                val ratio = if (a >= 1f) Rational((a * 100).toInt(), 100)
-                else Rational(100, (100 / a).toInt())
-                enterPictureInPictureMode(
-                    PictureInPictureParams.Builder().setAspectRatio(ratio).build()
-                )
-            }
+            runCatching { enterPictureInPictureMode(pipParams(VideoPlayback.aspect)) }
         }
         super.onUserLeaveHint()
+    }
+
+    /**
+     * Masuk/keluar PiP menandai UI supaya seluruh overlay kontrol
+     * disembunyikan — hanya gambarnya yang tampil (temuan audit #9).
+     */
+    @Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        VideoPlayback.inPip.value = isInPictureInPictureMode
     }
 }
 

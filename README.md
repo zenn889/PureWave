@@ -10,6 +10,10 @@ Music player Android **native** (Kotlin + Jetpack Compose + Media3/ExoPlayer).
 Memutar semua musik dari penyimpanan internal HP. **Tanpa internet, tanpa
 akun, tanpa iklan.**
 
+> **v2.16.0**: Picture-in-Picture bersih (overlay kontrol otomatis hilang
+> saat jendela mengecil) + widget layar utama kini menampilkan bar progres
+> dan waktu lagu.
+>
 > **v2.7.2**: kartu pustaka gradien (HeroCard) + penanda lagu aktif
 > (mini-EQ animasi) + info aplikasi lengkap. Splash, onboarding, dan APK
 > release signed (R8) hadir sejak v2.7.0.
@@ -47,6 +51,10 @@ akun, tanpa iklan.**
   waktu tampil di layar pemutar.
 - **Kontrol di notifikasi & lock screen** + lanjut main di latar belakang
   (MediaSessionService; audio focus; pause otomatis saat headset dicabut).
+- **Widget layar utama**: lagu aktif + bar progres & waktu berjalan +
+  tombol sebelumnya/putar-berikutnya (progres disegarkan tiap detik).
+- **Picture-in-Picture**: video tetap tampil sebagai jendela kecil saat
+  ditekan Home; seluruh kontrol otomatis disembunyikan di mode itu.
 - 100% offline — APK bahkan tidak meminta izin INTERNET.
 - Identitas: logo not musik gradient coral (adaptive icon), nama "PureWave"
   (label aplikasi; package teknis tetap `com.zenn889.putar` agar update
