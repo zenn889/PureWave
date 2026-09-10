@@ -202,8 +202,12 @@ fun TrackRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(if (isCurrent) Coral.copy(alpha = 0.08f) else Color.Transparent)
+            .padding(horizontal = 10.dp, vertical = 3.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(
+                if (isCurrent) Coral.copy(alpha = 0.14f)
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+            )
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .pointerInput(onSwipeLeft, onSwipeRight) {
                 var acc = 0f
@@ -220,8 +224,13 @@ fun TrackRow(
             .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AlbumArt(MusicRepository.albumArtUri(track.albumId), size = 52.dp, shape = RoundedCornerShape(12.dp))
-        Spacer(Modifier.width(12.dp))
+        AlbumArt(
+            MusicRepository.albumArtUri(track.albumId),
+            size = 54.dp,
+            shape = RoundedCornerShape(15.dp),
+            modifier = Modifier.shadow(9.dp, RoundedCornerShape(15.dp), clip = false)
+        )
+        Spacer(Modifier.width(13.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 text = track.title,

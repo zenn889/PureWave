@@ -16,6 +16,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +30,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
@@ -69,6 +71,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -359,6 +362,23 @@ fun PlayerApp() {
     }
 
     Box(Modifier.fillMaxSize()) {
+
+    // latar: dasar + pendar coral tipis dari atas (biar tidak terasa datar)
+    Box(
+        modifier = Modifier
+            .matchParentSize()
+            .background(MaterialTheme.colorScheme.background)
+    )
+    Box(
+        modifier = Modifier
+            .matchParentSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(Coral.copy(alpha = 0.13f), Color.Transparent, Color.Transparent),
+                    endY = 950f
+                )
+            )
+    )
 
     // --- kontrol pemutar (Media3) ---
     var controller by remember { mutableStateOf<MediaController?>(null) }
@@ -898,7 +918,7 @@ fun PlayerApp() {
     }
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
         bottomBar = {
             Column {
                 if (mirror.hasMedia) {
@@ -1015,6 +1035,7 @@ fun PlayerApp() {
                             },
                             onOpenSettings = { showSettings = true },
                             onPlayAllShuffled = { playList(rootSongs, 0, shuffled = true) },
+                            onTabSelect = { tab = it },
                             showSort = tab == LibraryTab.LAGU || tab == LibraryTab.FAVORIT,
                             sortChoice = sortChoice,
                             onSortChange = { sortChoice = it }
@@ -1455,38 +1476,39 @@ private fun LibraryHeader(
     onQueryChange: (String) -> Unit,
     onOpenSettings: () -> Unit,
     onPlayAllShuffled: () -> Unit,
+    onTabSelect: (LibraryTab) -> Unit,
     showSort: Boolean,
     sortChoice: SortOption,
     onSortChange: (SortOption) -> Unit
 ) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 10.dp, bottom = 4.dp)) {
+        // --- identitas aplikasi + sapaan ---
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.verticalGradient(listOf(Color(0xFFFF744A), Color(0xFFB22C12)))
-                    ),
+                    .size(46.dp)
+                    .shadow(14.dp, RoundedCornerShape(16.dp), clip = false)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Brush.linearGradient(listOf(Color(0xFFFF8A5B), Color(0xFFC2330F)))),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Filled.GraphicEq,
                     contentDescription = "PureWave",
                     tint = Color(0xFFFFF8F2),
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(26.dp)
                 )
             }
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    "PureWave",
+                    greetingLine(),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    "${greetingLine()} · pemutar offline",
+                    "PureWave · pemutar offline",
                     style = MaterialTheme.typography.bodySmall,
                     color = MutedInk
                 )
@@ -1497,25 +1519,16 @@ private fun LibraryHeader(
             IconButton(onClick = onOpenSettings) {
                 Icon(Icons.Filled.Settings, contentDescription = "Setelan", tint = MutedInk)
             }
-            Spacer(Modifier.width(2.dp))
-            if (tab == LibraryTab.LAGU) {
-                FilledTonalButton(onClick = onPlayAllShuffled) {
-                    Icon(
-                        Icons.Filled.Shuffle, contentDescription = null,
-                        tint = Coral, modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text("Acak semua", color = MaterialTheme.colorScheme.onSurface)
-                }
-            }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
+
+        // --- kolom pencarian berbentuk pil ---
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
             singleLine = true,
-            placeholder = { Text("Cari…", color = FaintInk) },
+            placeholder = { Text("Cari lagu, album, artis…", color = FaintInk) },
             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = MutedInk) },
             trailingIcon = {
                 if (query.isNotEmpty()) {
@@ -1524,10 +1537,10 @@ private fun LibraryHeader(
                     }
                 }
             },
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(999.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Coral,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedBorderColor = Coral.copy(alpha = 0.75f),
+                unfocusedBorderColor = Color.Transparent,
                 focusedContainerColor = SurfaceHigh,
                 unfocusedContainerColor = SurfaceHigh,
                 cursorColor = Coral,
@@ -1537,12 +1550,52 @@ private fun LibraryHeader(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(12.dp))
+
+        // --- chip statistik (sekaligus pintasan pindah tab) ---
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            item { StatChip("Lagu", rootSongs, tab == LibraryTab.LAGU) { onTabSelect(LibraryTab.LAGU) } }
+            item { StatChip("Album", rootAlbums, tab == LibraryTab.ALBUM) { onTabSelect(LibraryTab.ALBUM) } }
+            item { StatChip("Artis", rootArtists, tab == LibraryTab.ARTIS) { onTabSelect(LibraryTab.ARTIS) } }
+            item { StatChip("Folder", rootFolders, tab == LibraryTab.FOLDER) { onTabSelect(LibraryTab.FOLDER) } }
+            item { StatChip("Video", rootVideos, tab == LibraryTab.VIDEO) { onTabSelect(LibraryTab.VIDEO) } }
+            item { StatChip("Favorit", rootFavs, tab == LibraryTab.FAVORIT) { onTabSelect(LibraryTab.FAVORIT) } }
+            if (rootSongs > 0) {
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = Coral,
+                        modifier = Modifier.clickable(onClick = onPlayAllShuffled)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 15.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Filled.Shuffle,
+                                contentDescription = null,
+                                tint = Color(0xFF190902),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                "Acak semua",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF190902)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
         val info = when (tab) {
             LibraryTab.LAGU ->
                 if (query.isBlank()) "$totalSongs lagu di perangkat" else "$rootSongs dari $totalSongs lagu"
             LibraryTab.ALBUM ->
-                if (query.isBlank()) "${rootAlbums} album" else "$rootAlbums album cocok"
+                if (query.isBlank()) "$rootAlbums album" else "$rootAlbums album cocok"
             LibraryTab.ARTIS ->
                 if (query.isBlank()) "$rootArtists artis" else "$rootArtists artis cocok"
             LibraryTab.FOLDER ->
@@ -1558,6 +1611,39 @@ private fun LibraryHeader(
             color = MutedInk,
             modifier = Modifier.padding(start = 4.dp)
         )
+    }
+}
+
+/** Chip statistik di header — sekaligus pintasan pindah tab. */
+@Composable
+private fun StatChip(
+    label: String,
+    count: Int,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = if (selected) Coral.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                color = if (selected) Coral else MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                count.toString(),
+                style = MaterialTheme.typography.labelMedium,
+                color = if (selected) Coral else MutedInk
+            )
+        }
     }
 }
 
