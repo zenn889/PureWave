@@ -241,6 +241,13 @@ Catatan penting:
   `app/build.gradle.kts` (cek properti `putarStoreFile`). Jangan pernah
   mengakalinya dengan keystore tiruan: tanda tangan berbeda = pengguna harus
   uninstall dulu (data favorit/playlist hilang).
+- **Password keystore WAJIB ada salinannya** (password manager + `.jks` di dua
+  tempat berbeda). `~/.gradle/gradle.properties` di satu mesin bukan cadangan.
+  Kalau password hilang, kunci lama tidak bisa dipakai selamanya: keystore
+  PKCS12 tidak bisa dibuka tanpa password, tidak ada pintu belakang. Akibatnya
+  rilis berikutnya harus pakai kunci baru, dan **semua** pengguna wajib
+  uninstall dulu (favorit/playlist/statistik hilang kecuali sudah diekspor
+  lewat Setelan → Backup sebelum uninstall).
 - Tanda tangan tetap sama sejak v2.7.0 → user bisa update tanpa hapus data.
 - `versionCode` harus selalu naik, kalau tidak akan ditolak saat update.
 
@@ -284,6 +291,10 @@ Catatan penting:
 12. **Id RemoteViews**: menambah view di layout widget tanpa menambah setter di
     `PlayerWidget.views()` (atau sebaliknya) membuat widget tampil kosong —
     bukan crash, jadi gampang lolos. Cek dengan memasang widget di HP.
+13. **Password keystore hanya disimpan di satu mesin**: keystore PKCS12 tidak
+    bisa dibuka tanpa password (tidak ada recovery), jadi kehilangan password =
+    rilis berikutnya harus pakai kunci baru dan semua pengguna harus uninstall
+    dulu. Simpan password di password manager, dan simpan salinan file `.jks`.
 
 ---
 

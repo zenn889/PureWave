@@ -109,5 +109,8 @@ emulator Android tidak bisa dipakai — PiP & widget tetap **perlu tes di HP**.
 5. Bersihkan utang lint (#15): `@OptIn(UnstableApi::class)` untuk pemakaian
    media3, tangani `startForegroundService` untuk API 24–25, dan jalankan
    lint di alur rilis supaya tidak menumpuk lagi.
+6. Amankan kunci rilis: simpan password `putar-release.jks` (alias `putar`) di
+   password manager dan taruh salinan `.jks` di dua tempat. Tanpa itu, satu
+   mesin hilang = rilis berikutnya tidak bisa menimpa versi terpasang.
 
 Sudah selesai: PiP bersih (#9) dan progres di widget (#12) — v2.16.0.
