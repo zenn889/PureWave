@@ -58,7 +58,7 @@ fun HeroCard(songs: List<Track>, onShuffleAll: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .background(
                 Brush.linearGradient(listOf(Color(0xFF221C20), Color(0xFF2B1F18))),
-                RoundedCornerShape(22.dp)
+                RoundedCornerShape(24.dp)
             )
             .clickable(onClick = onShuffleAll)
     ) {

@@ -48,7 +48,7 @@ fun PureWaveBottomBar(current: LibraryTab, onSelect: (LibraryTab) -> Unit) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.25f))
         )
         androidx.compose.foundation.layout.Row(
             modifier = Modifier
@@ -68,7 +68,7 @@ fun PureWaveBottomBar(current: LibraryTab, onSelect: (LibraryTab) -> Unit) {
                     // indikator kecil
                     Box(
                         modifier = Modifier
-                            .size(width = 16.dp, height = 3.dp)
+                            .size(width = 18.dp, height = 3.dp)
                             .background(
                                 if (selected) Coral else MaterialTheme.colorScheme.surface,
                                 RoundedCornerShape(2.dp)

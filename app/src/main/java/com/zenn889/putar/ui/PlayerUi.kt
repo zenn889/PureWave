@@ -206,10 +206,10 @@ fun TrackRow(
                     onDragCancel = { acc = 0f }
                 )
             }
-            .padding(horizontal = 12.dp, vertical = 7.dp),
+            .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AlbumArt(MusicRepository.albumArtUri(track.albumId), size = 46.dp)
+        AlbumArt(MusicRepository.albumArtUri(track.albumId), size = 52.dp, shape = RoundedCornerShape(12.dp))
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(
@@ -394,6 +394,15 @@ fun NowPlayingSheet(
                 .padding(bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // pegangan lembut ala bottom sheet premium
+            Box(
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .size(width = 44.dp, height = 4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.outline)
+            )
+            Spacer(Modifier.height(10.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically

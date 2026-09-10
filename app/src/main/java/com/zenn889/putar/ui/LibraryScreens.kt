@@ -145,7 +145,7 @@ fun AlbumCard(album: Album, onClick: () -> Unit) {
         AlbumArt(
             uri = MusicRepository.albumArtUri(album.albumId),
             size = 148.dp,
-            shape = RoundedCornerShape(14.dp)
+            shape = RoundedCornerShape(16.dp)
         )
         Spacer(Modifier.height(6.dp))
         Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {

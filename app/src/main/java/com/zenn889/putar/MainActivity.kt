@@ -1406,7 +1406,7 @@ private fun LibraryHeader(
                     }
                 }
             },
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(16.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Coral,
                 unfocusedBorderColor = MaterialTheme.colorScheme.outline,

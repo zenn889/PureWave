@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -13,7 +14,75 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
+
+/** Tipografi khas PureWave — sedikit lebih rapat & tegas (kesan premium). */
+private val PureWaveTypography = Typography(
+    headlineSmall = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Bold,
+        fontSize = 26.sp,
+        lineHeight = 32.sp,
+        letterSpacing = (-0.4).sp
+    ),
+    titleLarge = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Bold,
+        fontSize = 21.sp,
+        lineHeight = 26.sp,
+        letterSpacing = (-0.3).sp
+    ),
+    titleMedium = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Bold,
+        fontSize = 16.sp,
+        lineHeight = 21.sp,
+        letterSpacing = (-0.1).sp
+    ),
+    bodyLarge = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Medium,
+        fontSize = 15.sp,
+        lineHeight = 20.sp,
+        letterSpacing = 0.sp
+    ),
+    bodyMedium = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Normal,
+        fontSize = 13.5.sp,
+        lineHeight = 18.sp,
+        letterSpacing = 0.sp
+    ),
+    bodySmall = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Normal,
+        fontSize = 12.sp,
+        lineHeight = 16.sp,
+        letterSpacing = 0.1.sp
+    ),
+    labelLarge = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 13.sp,
+        letterSpacing = 0.2.sp
+    ),
+    labelMedium = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        letterSpacing = 0.2.sp
+    ),
+    labelSmall = TextStyle(
+        fontFamily = FontFamily.SansSerif,
+        fontWeight = FontWeight.Medium,
+        fontSize = 10.sp,
+        letterSpacing = 0.3.sp
+    )
+)
 
 /* ---------- token tema: dibaca per-komposisi dari palet aktif ---------- */
 
@@ -118,12 +187,12 @@ private fun applyPalette(
     Palette.error = if (dark) Color(0xFFFF6F5E) else Color(0xFFB3261E)
     if (dark) {
         Palette.ink = Color(0xFFF5F4F0)
-        Palette.mutedInk = Color(0xFFAAA9A3)
-        Palette.faintInk = Color(0xFF7C7D83)
-        Palette.bg = if (oled) Color(0xFF000000) else Color(0xFF101218)
-        Palette.surface = if (oled) Color(0xFF0A0A0C) else Color(0xFF171A21)
-        Palette.surfaceHigh = if (oled) Color(0xFF141416) else Color(0xFF20242D)
-        Palette.outline = Color(0xFF2F333B)
+        Palette.mutedInk = Color(0xFFA9A8A2)
+        Palette.faintInk = Color(0xFF7A7A82)
+        Palette.bg = if (oled) Color(0xFF000000) else Color(0xFF0D0F14)
+        Palette.surface = if (oled) Color(0xFF0A0A0C) else Color(0xFF151820)
+        Palette.surfaceHigh = if (oled) Color(0xFF141416) else Color(0xFF1F232C)
+        Palette.outline = Color(0xFF2B3038)
     } else {
         Palette.ink = Color(0xFF1B1B1E)
         Palette.mutedInk = Color(0xFF5E5E5A)
@@ -213,5 +282,5 @@ fun PutarTheme(content: @Composable () -> Unit) {
         }
     }
 
-    MaterialTheme(colorScheme = scheme, content = content)
+    MaterialTheme(colorScheme = scheme, typography = PureWaveTypography, content = content)
 }
