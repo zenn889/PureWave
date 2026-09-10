@@ -52,6 +52,9 @@ Android hanya mengizinkan update kalau tanda tangannya sama, jadi langkahnya:
 Sudah pakai v2.16.0 atau lebih baru? Lewati bagian ini — cukup install
 versi terbaru seperti biasa.
 
+> Merilis sendiri? Cara mencadangkan kunci tanda tangannya ada di
+> [docs/KEYS.md](docs/KEYS.md).
+
 ## Mau hilangkan peringatan total?
 
 Hanya dengan terbit di Google Play (biaya developer US$25 sekali).
