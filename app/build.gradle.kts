@@ -12,8 +12,8 @@ android {
         applicationId = "com.zenn889.putar"
         minSdk = 24
         targetSdk = 36
-        versionCode = 33
-        versionName = "2.12.0"
+        versionCode = 34
+        versionName = "2.13.0"
     }
 
     signingConfigs {
@@ -74,4 +74,5 @@ dependencies {
 
     // album art dari MediaStore
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("androidx.palette:palette-ktx:1.0.0")
 }
