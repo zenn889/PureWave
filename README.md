@@ -13,6 +13,13 @@ akun, tanpa iklan.**
 > **v2.18.0**: normalisasi volume antar lagu (ReplayGain, opsional di Setelan),
 > plus 12 unit test pertama dan CI GitHub Actions yang memeriksa tiap push.
 >
+> **v2.19.2**: perbaikan akar teks tak terlihat — `MaterialTheme` ternyata tidak
+> menetapkan warna teks bawaan (bawaannya hitam), jadi setiap `Text` yang tidak
+> menyebut warnanya sendiri hilang di tema gelap. Itu sebabnya judul di baris
+> Artis, Folder, dan Video tidak terbaca. Sekarang tema menetapkan warna teks
+> bawaan, plus judul ketiga baris itu diberi warna eksplisit. Pemindaian
+> menemukan 31 tempat seperti ini; semuanya kini tertangani.
+>
 > **v2.19.1**: perbaikan kontras teks — judul lagu di daftar, mini player,
 > layar pemutar, kartu album, dan bar judul sekarang memakai warna tinta
 > eksplisit (bukan warna bawaan komponen), jadi tidak lagi menyatu dengan
