@@ -20,8 +20,8 @@ android {
         applicationId = "com.zenn889.putar"
         minSdk = 24
         targetSdk = 36
-        versionCode = 42
-        versionName = "2.19.2"
+        versionCode = 43
+        versionName = "2.20.0"
     }
 
     signingConfigs {

@@ -10,8 +10,10 @@ Music player Android **native** (Kotlin + Jetpack Compose + Media3/ExoPlayer).
 Memutar semua musik dari penyimpanan internal HP. **Tanpa internet, tanpa
 akun, tanpa iklan.**
 
-> **v2.18.0**: normalisasi volume antar lagu (ReplayGain, opsional di Setelan),
-> plus 12 unit test pertama dan CI GitHub Actions yang memeriksa tiap push.
+> **v2.20.0**: pembaharuan toolchain internal — tidak ada perubahan fitur atau
+> tampilan. Ditambahkan screenshot test otomatis (Paparazzi) untuk 10 permukaan
+> utama, dan toolchain dinaikkan (AGP 8.10.1, Kotlin 2.1.21) karena alat itu
+> belum mendukung compileSdk 36 pada versi stabilnya.
 >
 > **v2.19.2**: perbaikan akar teks tak terlihat — `MaterialTheme` ternyata tidak
 > menetapkan warna teks bawaan (bawaannya hitam), jadi setiap `Text` yang tidak
@@ -35,6 +37,9 @@ akun, tanpa iklan.**
 > besar, kolom pencarian jadi pil tanpa garis tepi, layar pemutar memakai
 > bayangan lebih dalam, dan bar navigasi bawah beranimasi (warna pil + label
 > muncul halus).
+>
+> **v2.18.0**: normalisasi volume antar lagu (ReplayGain, opsional di Setelan),
+> plus 12 unit test pertama dan CI GitHub Actions yang memeriksa tiap push.
 >
 > **v2.17.0**: urutkan lagu di dalam playlist (seret gagang atau tombol
 > naik/turun), sortir jadi 10 pilihan (termasuk tersimpan & berlaku juga di
@@ -107,7 +112,7 @@ akun, tanpa iklan.**
 
 ## Unduh
 
-https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.19.2.apk`.
+https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.20.0.apk`.
 
 > **Pindah dari v2.7.0–v2.15.0 (wajib baca):** rilis v2.16.0 memakai kunci
 > penandatangan **baru**. Kunci lama (v2.7.0–v2.15.0) tidak bisa dipakai lagi
