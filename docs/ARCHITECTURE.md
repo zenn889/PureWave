@@ -254,6 +254,13 @@ Catatan penting:
   harus uninstall dulu (lihat INSTALL.md "Pindah dari versi lama"); rilis
   v2.16.0 ke atas tetap bisa saling menimpa.
 - `versionCode` harus selalu naik, kalau tidak akan ditolak saat update.
+- **Tanpa gh CLI**: `GH_TOKEN=<token> bash scripts/release-api.sh <versi> "<catatan>"`
+  menjalankan alur yang sama lewat REST API — bump versi, build rilis,
+  verifikasi sertifikat terhadap sidik jari kunci aktif (berhenti kalau beda),
+  dist + sha256, commit & push, lalu GitHub Release yang **langsung ditandai
+  Latest**, dan terakhir mengunduh balik asetnya untuk memastikan byte-nya
+  utuh. `DRY=1` untuk simulasi tanpa mengubah apa pun. Cocok untuk mesin yang
+  tidak punya `gh`.
 
 ---
 

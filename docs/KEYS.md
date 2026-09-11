@@ -33,6 +33,10 @@ Sertifikat SHA-256 ini bisa dicocokkan dengan APK yang beredar:
 
     apksigner verify --print-certs purewave-vX.Y.Z.apk
 
+`scripts/release-api.sh` memeriksa ulang sidik jari ini setiap kali merilis dan
+**berhenti** kalau sertifikatnya berbeda — jadi rilis dengan kunci yang salah
+tidak mungkin lolos tanpa disadari.
+
 ## Yang wajib dicadangkan (2 tempat terpisah, jangan satu)
 
 1. **File keystore** `putar-release.jks` — salin ke minimal dua tempat di luar
