@@ -13,6 +13,16 @@ akun, tanpa iklan.**
 > **v2.18.0**: normalisasi volume antar lagu (ReplayGain, opsional di Setelan),
 > plus 12 unit test pertama dan CI GitHub Actions yang memeriksa tiap push.
 >
+> **v2.19.0**: tampilan diperbarui dengan gaya **gelap premium** — sekarang
+> semua sudut, jarak, bayangan, dan durasi gerak diambil dari satu sistem token
+> (`ui/theme/Tokens.kt`), jadi tidak ada lagi sudut 2/9/14/15/18/20 dp yang
+> campur aduk. Daftar lagu tidak lagi berbentuk kotak per baris (hanya lagu
+> yang sedang diputar yang disorot), kartu album/artis/folder seragam dengan
+> bayangan lembut + efek mengecil saat ditekan, kartu sambutan bersudut lebih
+> besar, kolom pencarian jadi pil tanpa garis tepi, layar pemutar memakai
+> bayangan lebih dalam, dan bar navigasi bawah beranimasi (warna pil + label
+> muncul halus).
+>
 > **v2.17.0**: urutkan lagu di dalam playlist (seret gagang atau tombol
 > naik/turun), sortir jadi 10 pilihan (termasuk tersimpan & berlaku juga di
 > daftar album/artis/folder), dan pencarian lebih pintar (kata tidak perlu
@@ -72,6 +82,11 @@ akun, tanpa iklan.**
   tombol sebelumnya/putar-berikutnya (progres disegarkan tiap detik).
 - **Picture-in-Picture**: video tetap tampil sebagai jendela kecil saat
   ditekan Home; seluruh kontrol otomatis disembunyikan di mode itu.
+- **Tampilan**: seluruh ukuran visual (sudut, jarak, bayangan, durasi animasi)
+  berasal dari satu berkas token — `ui/theme/Tokens.kt` — sehingga permukaan
+  yang mirip selalu terlihat konsisten. Daftar lagu bersih tanpa kotak per
+  baris; lagu yang sedang diputar disorot halus, kartu album mengecil sedikit
+  saat ditekan, dan bar navigasi bawah berpindah dengan animasi warna.
 - 100% offline — APK bahkan tidak meminta izin INTERNET.
 - Identitas: logo not musik gradient coral (adaptive icon), nama "PureWave"
   (label aplikasi; package teknis tetap `com.zenn889.putar` agar update
@@ -79,7 +94,7 @@ akun, tanpa iklan.**
 
 ## Unduh
 
-https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.18.0.apk`.
+https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.19.0.apk`.
 
 > **Pindah dari v2.7.0–v2.15.0 (wajib baca):** rilis v2.16.0 memakai kunci
 > penandatangan **baru**. Kunci lama (v2.7.0–v2.15.0) tidak bisa dipakai lagi
@@ -111,8 +126,13 @@ APK debug.
       data/MusicRepository.kt  query MediaStore (audio perangkat)
       data/Track.kt            model lagu
       ui/PlayerUi.kt           daftar lagu, mini player, layar penuh
+      ui/LibraryHeader.kt      kepala pustaka: sapaan, pencarian, chip tab
+      ui/ScreenStates.kt       layar izin & pustaka kosong
+      ui/SleepTimerDialog.kt   dialog sleep timer
+      ui/BottomTabs.kt         bar navigasi bawah mengambang
       ui/EqualizerSheet.kt     panel equalizer & bass
       ui/theme/Theme.kt        tema gelap khas PureWave
+      ui/theme/Tokens.kt       token desain: sudut, jarak, bayangan, durasi gerak
 
 ## Catatan
 

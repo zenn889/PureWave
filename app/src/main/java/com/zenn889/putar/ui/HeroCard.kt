@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -32,8 +33,11 @@ import androidx.compose.ui.unit.sp
 import com.zenn889.putar.data.Track
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.CoralBright
+import com.zenn889.putar.ui.theme.Elev
 import com.zenn889.putar.ui.theme.FaintInk
 import com.zenn889.putar.ui.theme.Ink
+import com.zenn889.putar.ui.theme.Radius
+import com.zenn889.putar.ui.theme.Space
 
 private fun fmtDurLabel(msTotal: Long): String {
     val totalMin = msTotal / 60_000L
@@ -60,13 +64,14 @@ fun HeroCard(songs: List<Track>, onShuffleAll: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .padding(horizontal = Space.lg, vertical = Space.sm)
+            .shadow(Elev.card, RoundedCornerShape(Radius.xl), clip = false)
             .background(
                 Brush.linearGradient(
                     if (light) listOf(Color(0xFFFDF1EA), Color(0xFFF8E1D4), Color(0xFFF3D3C3))
                     else listOf(Color(0xFF2B2126), Color(0xFF231B1F), Color(0xFF191316))
                 ),
-                RoundedCornerShape(24.dp)
+                RoundedCornerShape(Radius.xl)
             )
             .clickable(onClick = onShuffleAll)
     ) {
@@ -119,7 +124,8 @@ fun HeroCard(songs: List<Track>, onShuffleAll: () -> Unit) {
                 Box(
                     modifier = Modifier
                         .size(56.dp)
-                        .background(Coral, CircleShape)
+                        .shadow(Elev.raised, CircleShape, clip = false)
+                        .background(Brush.linearGradient(listOf(Coral, CoralBright)), CircleShape)
                         .clickable(onClick = onShuffleAll),
                     contentAlignment = Alignment.Center
                 ) {

@@ -1,5 +1,8 @@
 package com.zenn889.putar.ui
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +26,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,7 +37,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.zenn889.putar.ui.theme.Coral
+import com.zenn889.putar.ui.theme.Elev
+import com.zenn889.putar.ui.theme.Motion
 import com.zenn889.putar.ui.theme.MutedInk
+import com.zenn889.putar.ui.theme.Radius
+import com.zenn889.putar.ui.theme.Space
 
 private fun LibraryTab.icon(): ImageVector = when (this) {
     LibraryTab.LAGU -> Icons.Filled.MusicNote
@@ -54,13 +62,13 @@ fun PureWaveBottomBar(current: LibraryTab, onSelect: (LibraryTab) -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp)
-            .padding(top = 4.dp, bottom = 10.dp)
+            .padding(horizontal = Space.md)
+            .padding(top = Space.xs, bottom = 10.dp)
     ) {
         Surface(
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.97f),
-            shape = RoundedCornerShape(26.dp),
-            shadowElevation = 20.dp,
+            shape = RoundedCornerShape(Radius.xl),
+            shadowElevation = Elev.raised,
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
@@ -71,12 +79,23 @@ fun PureWaveBottomBar(current: LibraryTab, onSelect: (LibraryTab) -> Unit) {
             ) {
                 LibraryTab.entries.forEach { tab ->
                     val selected = tab == current
+                    val pill by animateColorAsState(
+                        targetValue = if (selected) Coral.copy(alpha = 0.16f) else Color.Transparent,
+                        animationSpec = tween(Motion.base),
+                        label = "pill"
+                    )
+                    val tint by animateColorAsState(
+                        targetValue = if (selected) Coral else MutedInk,
+                        animationSpec = tween(Motion.quick),
+                        label = "tint"
+                    )
                     Row(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(if (selected) Coral.copy(alpha = 0.16f) else Color.Transparent)
+                            .clip(RoundedCornerShape(Radius.md))
+                            .background(pill)
                             .clickable { onSelect(tab) }
+                            .animateContentSize()
                             .padding(vertical = 8.dp, horizontal = 2.dp),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
@@ -84,16 +103,16 @@ fun PureWaveBottomBar(current: LibraryTab, onSelect: (LibraryTab) -> Unit) {
                         Icon(
                             tab.icon(),
                             contentDescription = tab.label,
-                            tint = if (selected) Coral else MutedInk,
+                            tint = tint,
                             modifier = Modifier.size(22.dp)
                         )
                         if (selected) {
-                            Spacer(Modifier.width(5.dp))
+                            Spacer(Modifier.width(Space.xs))
                             Text(
                                 tab.label,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Coral,
+                                color = tint,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )

@@ -1,6 +1,5 @@
 package com.zenn889.putar.ui
 
-import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -38,13 +37,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.zenn889.putar.ui.theme.Coral
+import com.zenn889.putar.ui.theme.Elev
 import com.zenn889.putar.ui.theme.FaintInk
 import com.zenn889.putar.ui.theme.MutedInk
+import com.zenn889.putar.ui.theme.Radius
+import com.zenn889.putar.ui.theme.Space
 import com.zenn889.putar.ui.theme.SurfaceHigh
 
 @Composable
 internal fun LibraryHeader(
-    context: Context,
     tab: LibraryTab,
     totalSongs: Int,
     rootSongs: Int,
@@ -62,14 +63,14 @@ internal fun LibraryHeader(
     sortChoice: SortOption,
     onSortChange: (SortOption) -> Unit
 ) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 10.dp, bottom = 4.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = Space.lg).padding(top = 10.dp, bottom = Space.xs)) {
         // --- identitas aplikasi + sapaan ---
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
                     .size(46.dp)
-                    .shadow(14.dp, RoundedCornerShape(16.dp), clip = false)
-                    .clip(RoundedCornerShape(16.dp))
+                    .shadow(Elev.raised, RoundedCornerShape(Radius.md), clip = false)
+                    .clip(RoundedCornerShape(Radius.md))
                     .background(Brush.linearGradient(listOf(Color(0xFFFF8A5B), Color(0xFFC2330F)))),
                 contentAlignment = Alignment.Center
             ) {
@@ -80,7 +81,7 @@ internal fun LibraryHeader(
                     modifier = Modifier.size(26.dp)
                 )
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(Space.md))
             Column(Modifier.weight(1f)) {
                 Text(
                     greetingLine(),
@@ -102,7 +103,7 @@ internal fun LibraryHeader(
             }
         }
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Space.md))
 
         // --- kolom pencarian berbentuk pil ---
         OutlinedTextField(
@@ -118,9 +119,9 @@ internal fun LibraryHeader(
                     }
                 }
             },
-            shape = RoundedCornerShape(999.dp),
+            shape = RoundedCornerShape(Radius.pill),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Coral.copy(alpha = 0.75f),
+                focusedBorderColor = Color.Transparent,
                 unfocusedBorderColor = Color.Transparent,
                 focusedContainerColor = SurfaceHigh,
                 unfocusedContainerColor = SurfaceHigh,
@@ -131,10 +132,10 @@ internal fun LibraryHeader(
             modifier = Modifier.fillMaxWidth()
         )
 
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(Space.md))
 
         // --- chip statistik (sekaligus pintasan pindah tab) ---
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(Space.sm)) {
             item { StatChip("Lagu", rootSongs, tab == LibraryTab.LAGU) { onTabSelect(LibraryTab.LAGU) } }
             item { StatChip("Album", rootAlbums, tab == LibraryTab.ALBUM) { onTabSelect(LibraryTab.ALBUM) } }
             item { StatChip("Artis", rootArtists, tab == LibraryTab.ARTIS) { onTabSelect(LibraryTab.ARTIS) } }
@@ -144,7 +145,7 @@ internal fun LibraryHeader(
             if (rootSongs > 0) {
                 item {
                     Surface(
-                        shape = RoundedCornerShape(999.dp),
+                        shape = RoundedCornerShape(Radius.pill),
                         color = Coral,
                         modifier = Modifier.clickable(onClick = onPlayAllShuffled)
                     ) {
@@ -203,12 +204,12 @@ private fun StatChip(
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(999.dp),
-        color = if (selected) Coral.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
+        shape = RoundedCornerShape(Radius.pill),
+        color = if (selected) Coral.copy(alpha = 0.16f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
         modifier = Modifier.clickable(onClick = onClick)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+            modifier = Modifier.padding(horizontal = Space.lg, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(

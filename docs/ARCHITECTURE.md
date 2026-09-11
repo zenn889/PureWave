@@ -211,7 +211,34 @@ membuat RemoteViews gagal render** (bukan crash app, tapi widget kosong).
   dengan script Pillow (lihat riwayat: uv run --with pillow python3 ...).
 - Splash: `res/drawable/ic_stat_music.xml`.
 
-### 4h. Normalisasi volume (ReplayGain)
+### 4h. Token desain (tampilan "gelap premium")
+
+Semua ukuran visual terpusat di `ui/theme/Tokens.kt`. Sebelum v2.19.0 nilai
+ditulis langsung di tempat pemakaian, hasilnya: sudut 2/8/9/10/12/13/14/15/16/
+18/20/24/26/30/999 dp bercampur dan bayangan 6–30 dp tanpa aturan.
+
+Pemakaian:
+
+- `Radius.{xs,sm,md,lg,xl,pill}` — sudut. Pedoman: `sm` untuk artwork kecil di
+  baris daftar (≤ 54 dp), `md` kartu & permukaan sedang, `lg` kartu besar +
+  artwork layar pemutar, `pill` untuk bentuk pil.
+- `Space.{xs,sm,md,lg,xl,xxl}` — jarak, skala 4 dp.
+- `Elev.{card,raised,hero}` — tiga tingkat bayangan saja.
+- `Motion.{quick,base,slow}` — durasi (ms) untuk tekan/buka-tutup/pendar.
+- `Modifier.pressScale(interactionSource)` — efek mengecil lalu memantul balik
+  saat ditekan (dipakai kartu album).
+
+Prinsip "gelap premium" yang dipakai: dasar gelap dengan satu warna aksen
+(coral) yang dipakai hemat, sampul album sebagai sumber warna latar
+(`rememberArtColor` + `tonalPair` di `ui/ArtColor.kt`), hierarki tipografi
+tegas (judul Bold dengan letter spacing negatif, teks pendukung `MutedInk`),
+dan bayangan lembut bertingkat alih-alih garis tepi.
+
+Aturan saat menambah layar baru: **jangan** menulis angka dp langsung untuk
+sudut/jarak/bayangan/durasi — ambil dari token. Kalau butuh nilai yang belum
+ada, tambahkan dulu di `Tokens.kt` supaya tetap satu bahasa.
+
+### 4i. Normalisasi volume (ReplayGain)
 Alur: tag file dibaca → gain dihitung → diterapkan sebagai volume pemutar.
 
 1. `data/ReplayGainReader.kt` — parser mandiri (tanpa library): ID3v2 `TXXX`
@@ -236,7 +263,7 @@ Alur: tag file dibaca → gain dihitung → diterapkan sebagai volume pemutar.
 Menambah dukungan format baru: tambah cabang di `ReplayGainReader.parse()`
 dan satu tes unit di `app/src/test/java/com/zenn889/putar/data/`.
 
-### 4i. Tes & CI
+### 4j. Tes & CI
 - Unit test JVM: `app/src/test/java/...` (`./gradlew :app:testDebugUnitTest`),
   JUnit 4. Cocok untuk logika murni (parser tag, perhitungan gain, util sortir).
 - CI: `.github/workflows/ci.yml` menjalankan cek kurung, unit test, dan

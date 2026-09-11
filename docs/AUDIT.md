@@ -67,8 +67,10 @@ INTERNET di manifest.
 | 18 | Keputusan stack (tetap Kotlin vs pindah bahasa) tidak terdokumentasi sehingga bisa diperdebatkan ulang tiap sesi | ringan (dokumentasi) | **Ditulis (refactor setelah v2.18.0)** di `docs/STACK.md`: angka nyata, perbandingan lintas platform, syarat wajib kalau suatu hari pindah, dan pemicu peninjauan ulang |
 | 19 | `MainActivity.kt` 1.843 baris menampung UI layar (header, dialog, layar izin/kosong) + helper pemutar, sehingga perubahan kecil menyentuh file raksasa | sedang (perawatan) | **Potongan kedua (refactor setelah v2.18.0)**: 13 deklarasi dipindah ke `ui/LibraryHeader.kt`, `ui/PlayerSupport.kt`, `ui/SleepTimerDialog.kt`, `ui/ScreenStates.kt`, `buildAlbumsFrom` ke `ui/LibraryScreens.kt`; 38 import yatim dibuang. MainActivity 1.843 → 1.429 baris. Sisa: `PlayerApp` sendiri (~1.000 baris) belum dipecah |
 
+| 20 | Ukuran visual (sudut, bayangan, durasi animasi) ditulis langsung di tempat pemakaian sehingga permukaan yang mirip terlihat berbeda-beda — sudut 2–30 dp & bayangan 6–30 dp bercampur, dan baris daftar dipaksa jadi kartu di setiap baris (bising) | sedang (rasa visual) | **Ditutup v2.19.0**: `ui/theme/Tokens.kt` (Radius/Space/Elev/Motion + `pressScale`), daftar lagu dibuat tanpa kotak per baris, kartu album/artis/folder + kartu sambutan + kolom cari + bar navigasi bawah diseragamkan dan diberi animasi. Prinsip & pedoman pemakaian ditulis di docs/ARCHITECTURE.md bagian 4h |
+
 Status kompilasi (terakhir diperiksa setelah refactor di atas): **BUILD
-SUCCESSFUL** — `check_braces.py` bersih (37 file), `assembleDebug` tanpa
+SUCCESSFUL** — `check_braces.py` bersih (38 file), `assembleDebug` tanpa
 warning deprecasi, 25 unit test lolos, dan isi APK debug diperiksa lewat
 `aapt2 dump badging` + `xmltree` + `strings` pada dex.
 

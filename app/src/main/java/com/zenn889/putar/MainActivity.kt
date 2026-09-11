@@ -953,7 +953,6 @@ fun PlayerApp() {
                         }
                     } else {
                         LibraryHeader(
-                            context = context,
                             tab = tab,
                             totalSongs = tracks.size,
                             rootSongs = rootSongs.size,

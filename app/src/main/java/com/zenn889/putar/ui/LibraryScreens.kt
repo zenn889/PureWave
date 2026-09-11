@@ -2,6 +2,7 @@ package com.zenn889.putar.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,9 +23,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -36,6 +39,10 @@ import com.zenn889.putar.data.FolderItem
 import com.zenn889.putar.data.MusicRepository
 import com.zenn889.putar.data.Track
 import com.zenn889.putar.ui.theme.Coral
+import com.zenn889.putar.ui.theme.Elev
+import com.zenn889.putar.ui.theme.Radius
+import com.zenn889.putar.ui.theme.Space
+import com.zenn889.putar.ui.theme.pressScale
 import com.zenn889.putar.ui.theme.FaintInk
 import com.zenn889.putar.ui.theme.MutedInk
 import com.zenn889.putar.ui.theme.SurfaceHigh
@@ -72,20 +79,23 @@ fun buildFolderItems(tracks: List<Track>): List<FolderItem> =
 /** Kartu album persegi untuk tab Album (kisi ala Spotify). */
 @Composable
 fun AlbumCard(album: Album, onClick: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 2.dp, vertical = 4.dp)
-            .clickable(onClick = onClick),
+            .padding(horizontal = 2.dp, vertical = Space.xs)
+            .pressScale(interaction)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         AlbumArt(
             uri = MusicRepository.albumArtUri(album.albumId),
             size = 148.dp,
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(Radius.md),
+            modifier = Modifier.shadow(Elev.card, RoundedCornerShape(Radius.md), clip = false)
         )
-        Spacer(Modifier.height(6.dp))
-        Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+        Spacer(Modifier.height(Space.sm))
+        Column(Modifier.fillMaxWidth().padding(horizontal = Space.xs)) {
             Text(
                 album.title,
                 maxLines = 1,
@@ -109,9 +119,9 @@ fun ArtistRow(name: String, songCount: Int, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(Radius.md))
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = Space.md, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -153,15 +163,15 @@ fun FolderRow(item: FolderItem, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(Radius.md))
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = Space.md, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(Radius.sm))
                 .background(SurfaceHigh),
             contentAlignment = Alignment.Center
         ) {

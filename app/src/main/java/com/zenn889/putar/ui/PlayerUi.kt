@@ -97,6 +97,9 @@ import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.CoralBright
 import com.zenn889.putar.ui.theme.FaintInk
 import com.zenn889.putar.ui.theme.MutedInk
+import com.zenn889.putar.ui.theme.Elev
+import com.zenn889.putar.ui.theme.Radius
+import com.zenn889.putar.ui.theme.Space
 import com.zenn889.putar.ui.theme.SurfaceHigh
 
 /** Wadah progres yang berdetak — hanya konsumennya (mini & layar penuh)
@@ -146,7 +149,7 @@ fun ArtPlaceholder(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun AlbumArt(uri: Uri?, size: Dp, shape: Shape = RoundedCornerShape(14.dp), modifier: Modifier = Modifier) {
+fun AlbumArt(uri: Uri?, size: Dp, shape: Shape = RoundedCornerShape(Radius.sm), modifier: Modifier = Modifier) {
     val artMod = modifier.size(size).clip(shape)
     if (uri == null) {
         ArtPlaceholder(artMod)
@@ -202,11 +205,10 @@ fun TrackRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 3.dp)
-            .clip(RoundedCornerShape(18.dp))
+            .padding(horizontal = Space.sm, vertical = 1.dp)
+            .clip(RoundedCornerShape(Radius.md))
             .background(
-                if (isCurrent) Coral.copy(alpha = 0.14f)
-                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+                if (isCurrent) Coral.copy(alpha = 0.12f) else Color.Transparent
             )
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .pointerInput(onSwipeLeft, onSwipeRight) {
@@ -221,25 +223,25 @@ fun TrackRow(
                     onDragCancel = { acc = 0f }
                 )
             }
-            .padding(horizontal = 12.dp, vertical = 9.dp),
+            .padding(horizontal = Space.md, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AlbumArt(
             MusicRepository.albumArtUri(track.albumId),
-            size = 54.dp,
-            shape = RoundedCornerShape(15.dp),
-            modifier = Modifier.shadow(9.dp, RoundedCornerShape(15.dp), clip = false)
+            size = 52.dp,
+            shape = RoundedCornerShape(Radius.sm)
         )
-        Spacer(Modifier.width(13.dp))
+        Spacer(Modifier.width(Space.lg))
         Column(Modifier.weight(1f)) {
             Text(
                 text = track.title,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
+                fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
                 color = if (isCurrent) Coral else MaterialTheme.colorScheme.onSurface
             )
+            Spacer(Modifier.height(1.dp))
             Text(
                 text = track.displayArtist,
                 maxLines = 1,
@@ -280,12 +282,12 @@ fun MiniPlayer(
 
     Surface(
         color = surf,
-        shadowElevation = 16.dp,
-        shape = RoundedCornerShape(20.dp),
+        shadowElevation = Elev.raised,
+        shape = RoundedCornerShape(Radius.lg),
         modifier = Modifier
-            .padding(horizontal = 10.dp)
-            .padding(bottom = 6.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .padding(horizontal = Space.sm)
+            .padding(bottom = Space.xs)
+            .clip(RoundedCornerShape(Radius.lg))
     ) {
         Box {
             // semburat warna sampul yang sedang diputar
@@ -330,10 +332,10 @@ fun MiniPlayer(
                 AlbumArt(
                     mirror.artwork,
                     size = 50.dp,
-                    shape = RoundedCornerShape(13.dp),
-                    modifier = Modifier.shadow(10.dp, RoundedCornerShape(13.dp), clip = false)
+                    shape = RoundedCornerShape(Radius.sm),
+                    modifier = Modifier.shadow(Elev.card, RoundedCornerShape(Radius.sm), clip = false)
                 )
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(Space.md))
                 Column(Modifier.weight(1f)) {
                     Text(
                         text = mirror.title.ifBlank { "PureWave" },
@@ -605,10 +607,10 @@ fun NowPlayingSheet(
                     AlbumArt(
                         uri = art,
                         size = artSize,
-                        shape = RoundedCornerShape(18.dp),
+                        shape = RoundedCornerShape(Radius.lg),
                         modifier = Modifier
                             .aspectRatio(1f)
-                            .shadow(30.dp, RoundedCornerShape(18.dp), clip = false)
+                            .shadow(Elev.hero, RoundedCornerShape(Radius.lg), clip = false)
                     )
                 }
 
