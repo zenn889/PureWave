@@ -102,6 +102,7 @@ import com.zenn889.putar.data.SessionStore
 import com.zenn889.putar.data.StatsStore
 import com.zenn889.putar.data.Track
 import com.zenn889.putar.data.VideoItem
+import com.zenn889.putar.data.VolumeNorm
 import com.zenn889.putar.ui.AddToPlaylistSheet
 import com.zenn889.putar.ui.AlbumCard
 import com.zenn889.putar.ui.ArtistRow
@@ -560,6 +561,8 @@ fun PlayerApp() {
             SortOption.entries.firstOrNull { it.name == saved } ?: SortOption.JUDUL
         )
     }
+    // normalisasi volume antar lagu (ReplayGain)
+    var volumeNormOn by remember { mutableStateOf(VolumeNorm.enabled(context)) }
 
     /** Ganti sortir + simpan pilihannya supaya menempel saat app dibuka lagi. */
     fun setSort(opt: SortOption) {
@@ -709,17 +712,18 @@ fun PlayerApp() {
     var sleepSongsPrevIndex by remember { mutableStateOf(-1) }
     var nextStack by remember { mutableStateOf(0) }
 
-    // fade-out lembut ~3 dtk lalu pause
+    // fade-out lembut ~3 dtk lalu pause (gain normalisasi tetap dihormati)
     fun fadePause() {
         val c = controller ?: return
+        val base = VolumeNorm.baseGain
         uiScope.launch {
             val steps = 14
             for (i in steps downTo 1) {
-                c.volume = i.toFloat() / steps
+                c.volume = base * i.toFloat() / steps
                 delay(220)
             }
             c.pause()
-            c.volume = 1f
+            c.volume = base
         }
     }
 
@@ -1358,6 +1362,13 @@ fun PlayerApp() {
             onStats = {
                 showSettings = false
                 showStats = true
+            },
+            volumeNorm = volumeNormOn,
+            onToggleVolumeNorm = { on ->
+                volumeNormOn = on
+                VolumeNorm.setEnabled(context, on)
+                VolumeNorm.clearCache()
+                PlaybackService.current()?.refreshVolumeNorm()
             },
             onDismiss = { showSettings = false }
         )

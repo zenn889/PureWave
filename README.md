@@ -10,6 +10,9 @@ Music player Android **native** (Kotlin + Jetpack Compose + Media3/ExoPlayer).
 Memutar semua musik dari penyimpanan internal HP. **Tanpa internet, tanpa
 akun, tanpa iklan.**
 
+> **v2.18.0**: normalisasi volume antar lagu (ReplayGain, opsional di Setelan),
+> plus 12 unit test pertama dan CI GitHub Actions yang memeriksa tiap push.
+>
 > **v2.17.0**: urutkan lagu di dalam playlist (seret gagang atau tombol
 > naik/turun), sortir jadi 10 pilihan (termasuk tersimpan & berlaku juga di
 > daftar album/artis/folder), dan pencarian lebih pintar (kata tidak perlu
@@ -57,6 +60,10 @@ akun, tanpa iklan.**
 - **Equalizer** native (android.media.audiofx): 5 pita (60 Hz–14 kHz),
   preset Pop/Rock/Jazz/Klasik/Dance/Bass, Bass Boost, reset — setelan
   tersimpan & menempel otomatis ke sesi audio.
+- **Normalisasi volume** (opsional, Setelan): mengikuti tag ReplayGain di file
+  — `REPLAYGAIN_TRACK_GAIN` + `_PEAK` — supaya kenyaringan antar lagu rata dan
+  tetap aman dari clipping. Lagu tanpa tag dibiarkan apa adanya. Didukung:
+  MP3 (ID3v2) & FLAC; OGG/Opus dan M4A belum.
 - **Sleep timer**: 10–90 menit, musik berhenti sendiri; status & sisa
   waktu tampil di layar pemutar.
 - **Kontrol di notifikasi & lock screen** + lanjut main di latar belakang
@@ -72,7 +79,7 @@ akun, tanpa iklan.**
 
 ## Unduh
 
-https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.16.0.apk`.
+https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.18.0.apk`.
 
 > **Pindah dari v2.7.0–v2.15.0 (wajib baca):** rilis v2.16.0 memakai kunci
 > penandatangan **baru**. Kunci lama (v2.7.0–v2.15.0) tidak bisa dipakai lagi
@@ -87,6 +94,13 @@ Prasyarat: JDK 17+, Android SDK (compileSdk 36).
 
     ./gradlew :app:assembleDebug
     # hasil: app/build/outputs/apk/debug/app-debug.apk
+
+    ./gradlew :app:testDebugUnitTest
+    # unit test JVM (tanpa perangkat/buatan): pembaca tag ReplayGain & gain
+
+Setiap push ke `main` dan setiap pull request diperiksa otomatis oleh GitHub
+Actions (`.github/workflows/ci.yml`): cek kurung kurawal, unit test, dan build
+APK debug.
 
 ## Struktur
 

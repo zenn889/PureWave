@@ -57,7 +57,9 @@ Data (`data/`):
 - `FavStore.kt`, `PlaylistStore.kt`, `SessionStore.kt` (auto-resume),
   `StatsStore.kt` (jumlah putar & menit), `VideoPosStore.kt` (resume video),
   `Lyrics.kt` (baca .lrc & cari file subtitle), `BackupStore.kt` (ekspor/
-  impor JSON favorit+playlist).
+  impor JSON favorit+playlist), `ReplayGainReader.kt` (baca tag ReplayGain dari
+  ID3v2 & FLAC, murni tanpa Android sehingga bisa diuji unit),
+  `VolumeNorm.kt` (setelan + cache gain + perhitungan gain aman).
 
 UI (`ui/`):
 - `theme/Theme.kt` — **semua warna & tipografi** (lihat bagian 3).
@@ -198,6 +200,37 @@ membuat RemoteViews gagal render** (bukan crash app, tapi widget kosong).
 - Android 7: PNG `mipmap-{mdpi..xxxhdpi}/ic_launcher*.png` — dibuat ulang
   dengan script Pillow (lihat riwayat: uv run --with pillow python3 ...).
 - Splash: `res/drawable/ic_stat_music.xml`.
+
+### 4h. Normalisasi volume (ReplayGain)
+Alur: tag file dibaca → gain dihitung → diterapkan sebagai volume pemutar.
+
+1. `data/ReplayGainReader.kt` — parser mandiri (tanpa library): ID3v2 `TXXX`
+   (`REPLAYGAIN_TRACK_GAIN` / `_PEAK`, v2.3 & v2.4 + sinkronisasi v2.2) dan
+   `RVA2`, serta blok FLAC `VORBIS_COMMENT`. Hanya 512 KB pertama file yang
+   dibaca. Sengaja murni (ByteArray masuk, data keluar) supaya bisa diuji unit
+   tanpa perangkat. Belum mendukung OGG/Opus dan MP4/M4A — file-nya tetap
+   diputar, hanya tanpa normalisasi.
+2. `data/VolumeNorm.kt` — setelan `volume_norm` di `putar_prefs`, cache gain
+   per content-URI, `filePathFor()` (URI `file://` langsung; URI MediaStore
+   lewat kolom `DATA`, sama seperti pencarian .lrc), dan `linearFor()` yang
+   mengubah dB jadi gain linear **dan menahan gain di 1/peak** kalau akan
+   clipping, lalu membatasinya ke rentang 0.25–2.0.
+3. `PlaybackService` menerapkan gain saat `EVENT_MEDIA_ITEM_TRANSITION`
+   (pembacaan file di IO thread, penyetelan volume di main thread) dan
+   menyediakan `refreshVolumeNorm()` untuk dipanggil UI saat setelan diubah.
+4. **Satu sumber kebenaran**: `VolumeNorm.baseGain`. Fade sleep timer di
+   `MainActivity` mengalikan nilai itu (`base * i/steps`, lalu kembali ke
+   `base`) — jangan pernah menyetel `volume = 1f` langsung, itu akan
+   menghapus gain normalisasi.
+
+Menambah dukungan format baru: tambah cabang di `ReplayGainReader.parse()`
+dan satu tes unit di `app/src/test/java/com/zenn889/putar/data/`.
+
+### 4i. Tes & CI
+- Unit test JVM: `app/src/test/java/...` (`./gradlew :app:testDebugUnitTest`),
+  JUnit 4. Cocok untuk logika murni (parser tag, perhitungan gain, util sortir).
+- CI: `.github/workflows/ci.yml` menjalankan cek kurung, unit test, dan
+  `assembleDebug` di setiap push ke `main` dan setiap pull request.
 
 ---
 

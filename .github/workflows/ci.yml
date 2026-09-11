@@ -1,0 +1,35 @@
+name: CI PureWave
+
+# Penjaga otomatis tiap push/PR: cek kurung kurawal Kotlin, unit test JVM,
+# lalu pastikan APK debug masih bisa dibangun.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Cek kurung kurawal Kotlin
+        run: python3 scripts/check_braces.py
+
+      - name: Unit test + build APK debug
+        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon
+
+      - name: Simpan laporan tes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: laporan-tes
+          path: app/build/reports/tests/testDebugUnitTest/
+          if-no-files-found: ignore

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Equalizer
@@ -31,6 +32,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -68,6 +70,8 @@ fun SettingsSheet(
     onBackup: () -> Unit,
     onRestore: () -> Unit,
     onStats: () -> Unit,
+    volumeNorm: Boolean,
+    onToggleVolumeNorm: (Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -101,6 +105,15 @@ fun SettingsSheet(
                 subtitle = if (fxOk) "Aktif — terpasang di sesi audio"
                 else "5 pita, preset, bass boost",
                 onClick = onEqualizer
+            )
+            SettingsToggleRow(
+                icon = Icons.AutoMirrored.Filled.VolumeUp,
+                title = "Normalisasi volume",
+                subtitle = if (volumeNorm)
+                    "Aktif — mengikuti tag ReplayGain tiap lagu"
+                else "Samakan kenyaringan antar lagu (butuh tag ReplayGain)",
+                checked = volumeNorm,
+                onCheckedChange = onToggleVolumeNorm
             )
             SettingsRow(
                 icon = Icons.Filled.Palette,
@@ -257,6 +270,40 @@ fun SettingsSheet(
                 TextButton(onClick = { showAbout = false }) { Text("Tutup", color = Coral) }
             }
         )
+    }
+}
+
+@Composable
+private fun SettingsToggleRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(CircleShape)
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(shape = CircleShape, color = Coral.copy(alpha = 0.12f)) {
+            Box(
+                modifier = Modifier.size(40.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = Coral, modifier = Modifier.size(20.dp))
+            }
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MutedInk)
+        }
+        Spacer(Modifier.width(8.dp))
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

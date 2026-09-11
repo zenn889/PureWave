@@ -73,9 +73,11 @@ dump badging` + `xmltree` + `strings` pada dex).
 ## 3. Verifikasi yang bisa & tidak bisa dilakukan di mesin ini
 
 Bisa: kompilasi, `apksigner verify`, `aapt2 dump badging` (package +
-versionCode), daftar isi APK (`unzip -l`), cek kurung kurawal, sha256, serta
+versionCode), daftar isi APK (`unzip -l`), cek kurung kurawal, sha256,
 pemeriksaan isi APK (`aapt2 dump xmltree` untuk layout widget, `strings` pada
-classes.dex untuk memastikan kode baru benar-benar ikut terpaket).
+classes.dex untuk memastikan kode baru benar-benar ikut terpaket), serta
+**unit test JVM** (`./gradlew :app:testDebugUnitTest`) untuk logika murni —
+mis. parser tag ReplayGain dan perhitungan gain (12 tes sejak v2.18.0).
 
 Tidak bisa (harus di HP user atau emulator dengan KVM): perilaku tema
 terang/gelap, gesture, widget di home screen, EQ, PiP nyata, lirik, resume
@@ -113,7 +115,13 @@ emulator Android tidak bisa dipakai — PiP & widget tetap **perlu tes di HP**.
 6. Amankan kunci rilis: simpan password `putar-release.jks` (alias `putar`) di
    password manager dan taruh salinan `.jks` di dua tempat. Tanpa itu, satu
    mesin hilang = rilis berikutnya tidak bisa menimpa versi terpasang.
+7. Tambah dukungan tag ReplayGain untuk OGG/Opus dan M4A/MP4 (sekarang baru
+   ID3v2 & FLAC), plus tes unit untuk util sortir/pencarian.
 
 Sudah selesai: PiP bersih (#9) dan progres di widget (#12) — v2.16.0.
 Urut-ulang lagu di playlist, sortir 10 pilihan (tersimpan), dan pencarian
 token/diakritik — v2.17.0.
+Normalisasi volume ReplayGain + 12 unit test + CI GitHub Actions — v2.18.0.
+Catatan: normalisasi hanya bekerja pada file yang punya tag ReplayGain
+(MP3/FLAC); OGG/Opus dan M4A belum dibaca, dan hasilnya perlu dinilai telinga
+di HP karena mesin ini tidak punya perangkat audio.

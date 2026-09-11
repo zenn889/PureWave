@@ -7,6 +7,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
+import com.zenn889.putar.data.VolumeNorm
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -14,6 +15,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Service pemutar (Media3/ExoPlayer). Menyediakan:
@@ -66,6 +68,9 @@ class PlaybackService : MediaSessionService() {
                         ) {
                             pushWidget(player)
                         }
+                        if (events.containsAny(Player.EVENT_MEDIA_ITEM_TRANSITION)) {
+                            applyVolumeNorm(player)
+                        }
                     }
                 })
             }
@@ -114,6 +119,38 @@ class PlaybackService : MediaSessionService() {
             }
         }
         AudioFx.applyCurrent(applicationContext)
+    }
+
+    /** Panggil dari UI: hitung ulang gain normalisasi (setelah setelan diubah). */
+    fun refreshVolumeNorm() {
+        val player = mediaSession?.player ?: return
+        if (player.mediaItemCount == 0) return
+        applyVolumeNorm(player)
+    }
+
+    /**
+     * Terapkan normalisasi volume untuk lagu yang sedang diputar. Pembacaan tag
+     * dilakukan di IO thread karena menyentuh file; volume diset kembali di
+     * main thread. Kalau fitur mati (atau lagu tanpa tag ReplayGain), gain 1.0.
+     */
+    private fun applyVolumeNorm(player: Player) {
+        val item = player.currentMediaItem ?: return
+        val uri = item.mediaId
+        if (!VolumeNorm.enabled(applicationContext)) {
+            VolumeNorm.setBaseGain(1f)
+            player.volume = 1f
+            return
+        }
+        widgetScope.launch {
+            val gain = withContext(Dispatchers.IO) {
+                VolumeNorm.gainFor(
+                    applicationContext, uri,
+                    VolumeNorm.filePathFor(applicationContext, uri)
+                )
+            }
+            VolumeNorm.setBaseGain(gain)
+            player.volume = gain
+        }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? =

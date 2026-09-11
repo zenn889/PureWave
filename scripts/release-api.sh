@@ -16,6 +16,15 @@ set -euo pipefail
 
 VERSION="${1:?pakai: bash scripts/release-api.sh <versionName> \"<catatan rilis>\"}"
 NOTES="${2:-Perbaikan dan polesan.}"
+# NOTES_FILE=<path> → pakai isi file sebagai badan catatan rilis (markdown),
+# dan baris pertama/argumen kedua sebagai judul komit.
+if [[ -n "${NOTES_FILE:-}" && -f "${NOTES_FILE}" ]]; then
+  NOTES_BODY="$(cat "$NOTES_FILE")"
+  NOTES_SUBJECT="${2:-$(head -1 "$NOTES_FILE")}"
+else
+  NOTES_BODY="$NOTES"
+  NOTES_SUBJECT="$NOTES"
+fi
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
@@ -51,17 +60,20 @@ import re, sys, pathlib
 version = sys.argv[1]
 p = pathlib.Path("app/build.gradle.kts")
 src = p.read_text(encoding="utf-8")
-m = re.search(r"versionCode\s*=\s*(\d+)", src)
-if not m:
-    raise SystemExit("versionCode tidak ditemukan di app/build.gradle.kts")
-src = re.sub(r"versionCode\s*=\s*\d+", f"versionCode = {int(m.group(1)) + 1}", src, count=1)
-src = re.sub(r'versionName\s*=\s*"[\d.]+"', f'versionName = "{version}"', src, count=1)
-p.write_text(src, encoding="utf-8")
-print("   " + [l for l in src.splitlines() if "versionCode" in l][0].strip())
+code = int(re.search(r"versionCode\s*=\s*(\d+)", src).group(1))
+current = re.search(r'versionName\s*=\s*"([\d.]+)"', src).group(1)
+if current == version:
+    print(f"   versi sudah {version} — versionCode tetap {code} (tidak menaikkan dua kali)")
+else:
+    code += 1
+    src = re.sub(r"versionCode\s*=\s*\d+", f"versionCode = {code}", src, count=1)
+    src = re.sub(r'versionName\s*=\s*"[\d.]+"', f'versionName = "{version}"', src, count=1)
+    p.write_text(src, encoding="utf-8")
+    print(f"   versionCode={code} versionName={version}")
 r = pathlib.Path("README.md")
 if r.exists():
     t = r.read_text(encoding="utf-8")
-    r.write_text(re.sub(r"purewave-v[\d.]+\.apk", f"purewave-{version}.apk", t), encoding="utf-8")
+    r.write_text(re.sub(r"purewave-v[\d.]+\.apk", f"purewave-v{version}.apk", t), encoding="utf-8")
 PY
 
 echo "== 2. build rilis (R8 + shrink) =="
@@ -87,17 +99,19 @@ sha256sum "$DIST_APK" | tee "$DIST_APK.sha256"
 
 echo "== 5. commit & push =="
 git add -A
-git commit -m "$TAG: $NOTES"
+git commit -m "$TAG: $NOTES_SUBJECT"
 git push origin main
 
 echo "== 6. GitHub Release (langsung Latest) =="
 AUTH=(-H "Authorization: token $GH_TOKEN" -H "Accept: application/vnd.github+json")
-python3 - "$TAG" "$NOTES" > /tmp/rel-body.json <<'PY'
-import json, sys
-tag, notes = sys.argv[1], sys.argv[2]
+export RELEASE_NOTES_BODY="$NOTES_BODY"
+python3 - "$TAG" <<'PY' > /tmp/rel-body.json
+import json, os, sys
+tag = sys.argv[1]
+body = os.environ["RELEASE_NOTES_BODY"]
 print(json.dumps({
     "tag_name": tag, "target_commitish": "main",
-    "name": f"PureWave {tag}", "body": notes,
+    "name": f"PureWave {tag}", "body": body,
     "draft": False, "prerelease": False, "make_latest": "true",
 }, ensure_ascii=False))
 PY
