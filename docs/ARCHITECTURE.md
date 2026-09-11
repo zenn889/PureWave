@@ -238,6 +238,16 @@ Aturan saat menambah layar baru: **jangan** menulis angka dp langsung untuk
 sudut/jarak/bayangan/durasi — ambil dari token. Kalau butuh nilai yang belum
 ada, tambahkan dulu di `Tokens.kt` supaya tetap satu bahasa.
 
+Aturan warna teks (dipelajari dari kesalahan di v2.19.0): teks judul **wajib**
+memakai warna tema eksplisit — `Ink` (judul), `MutedInk` (keterangan),
+`FaintInk` (informasi sekunder) — dan **tidak boleh** mengandalkan warna
+bawaan komponen. Warna bawaan bisa berbeda antar mode tema, mengikuti warna
+wallpaper saat tema dinamis aktif, atau hilang begitu komponen berpindah
+induk; di v2.19.0 baris daftar yang kotaknya dihapus membuat judul lagu
+terlihat menyatu dengan latar di tema gelap. Karena itu judul lagu di daftar,
+mini player, layar pemutar, kartu album, bar judul, dan baris playlist
+semuanya menyebut warnanya sendiri.
+
 ### 4i. Normalisasi volume (ReplayGain)
 Alur: tag file dibaca → gain dihitung → diterapkan sebagai volume pemutar.
 

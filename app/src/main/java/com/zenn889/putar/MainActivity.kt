@@ -284,7 +284,7 @@ fun PlayerApp() {
             .matchParentSize()
             .background(
                 Brush.verticalGradient(
-                    listOf(Coral.copy(alpha = 0.13f), Color.Transparent, Color.Transparent),
+                    listOf(Coral.copy(alpha = 0.09f), Color.Transparent, Color.Transparent),
                     endY = 950f
                 )
             )

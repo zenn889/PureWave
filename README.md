@@ -13,6 +13,12 @@ akun, tanpa iklan.**
 > **v2.18.0**: normalisasi volume antar lagu (ReplayGain, opsional di Setelan),
 > plus 12 unit test pertama dan CI GitHub Actions yang memeriksa tiap push.
 >
+> **v2.19.1**: perbaikan kontras teks — judul lagu di daftar, mini player,
+> layar pemutar, kartu album, dan bar judul sekarang memakai warna tinta
+> eksplisit (bukan warna bawaan komponen), jadi tidak lagi menyatu dengan
+> latar di tema gelap. Sorotan lagu yang sedang diputar ditebalkan dan pendar
+> coral di latar atas dilembutkan.
+>
 > **v2.19.0**: tampilan diperbarui dengan gaya **gelap premium** — sekarang
 > semua sudut, jarak, bayangan, dan durasi gerak diambil dari satu sistem token
 > (`ui/theme/Tokens.kt`), jadi tidak ada lagi sudut 2/9/14/15/18/20 dp yang
@@ -94,7 +100,7 @@ akun, tanpa iklan.**
 
 ## Unduh
 
-https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.19.0.apk`.
+https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.19.1.apk`.
 
 > **Pindah dari v2.7.0–v2.15.0 (wajib baca):** rilis v2.16.0 memakai kunci
 > penandatangan **baru**. Kunci lama (v2.7.0–v2.15.0) tidak bisa dipakai lagi

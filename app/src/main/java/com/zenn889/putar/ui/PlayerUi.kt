@@ -96,6 +96,7 @@ import com.zenn889.putar.data.Track
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.CoralBright
 import com.zenn889.putar.ui.theme.FaintInk
+import com.zenn889.putar.ui.theme.Ink
 import com.zenn889.putar.ui.theme.MutedInk
 import com.zenn889.putar.ui.theme.Elev
 import com.zenn889.putar.ui.theme.Radius
@@ -208,7 +209,7 @@ fun TrackRow(
             .padding(horizontal = Space.sm, vertical = 1.dp)
             .clip(RoundedCornerShape(Radius.md))
             .background(
-                if (isCurrent) Coral.copy(alpha = 0.12f) else Color.Transparent
+                if (isCurrent) Coral.copy(alpha = 0.16f) else Color.Transparent
             )
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .pointerInput(onSwipeLeft, onSwipeRight) {
@@ -238,8 +239,8 @@ fun TrackRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (isCurrent) Coral else MaterialTheme.colorScheme.onSurface
+                fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (isCurrent) Coral else Ink
             )
             Spacer(Modifier.height(1.dp))
             Text(
@@ -342,7 +343,8 @@ fun MiniPlayer(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        color = Ink
                     )
                     Text(
                         text = mirror.artist.ifBlank { "PureWave" },
@@ -627,7 +629,8 @@ fun NowPlayingSheet(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = Ink
                         )
                         Spacer(Modifier.height(3.dp))
                         Text(

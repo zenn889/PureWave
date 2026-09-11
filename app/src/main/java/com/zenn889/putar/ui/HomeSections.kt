@@ -38,6 +38,7 @@ import com.zenn889.putar.data.MusicRepository
 import com.zenn889.putar.data.Track
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.FaintInk
+import com.zenn889.putar.ui.theme.Ink
 import com.zenn889.putar.ui.theme.MutedInk
 
 /**
@@ -135,7 +136,8 @@ fun TrackStrip(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        color = Ink
                     )
                     Text(
                         track.displayArtist,

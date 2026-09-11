@@ -62,6 +62,7 @@ import com.zenn889.putar.data.Playlist
 import com.zenn889.putar.data.Track
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.FaintInk
+import com.zenn889.putar.ui.theme.Ink
 import com.zenn889.putar.ui.theme.MutedInk
 
 fun toast(context: Context, msg: String) {
@@ -379,7 +380,8 @@ fun PlaylistBrowserSheet(
                                 Text(track.title, maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.Medium)
+                                    fontWeight = FontWeight.Medium,
+                                    color = Ink)
                                 Text(track.displayArtist, maxLines = 1,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MutedInk)

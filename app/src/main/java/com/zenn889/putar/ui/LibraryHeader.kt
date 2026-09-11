@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.Elev
 import com.zenn889.putar.ui.theme.FaintInk
+import com.zenn889.putar.ui.theme.Ink
 import com.zenn889.putar.ui.theme.MutedInk
 import com.zenn889.putar.ui.theme.Radius
 import com.zenn889.putar.ui.theme.Space
@@ -87,7 +88,7 @@ internal fun LibraryHeader(
                     greetingLine(),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = Ink
                 )
                 Text(
                     "PureWave · pemutar offline",

@@ -40,6 +40,7 @@ import com.zenn889.putar.data.MusicRepository
 import com.zenn889.putar.data.Track
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.Elev
+import com.zenn889.putar.ui.theme.Ink
 import com.zenn889.putar.ui.theme.Radius
 import com.zenn889.putar.ui.theme.Space
 import com.zenn889.putar.ui.theme.pressScale
@@ -101,7 +102,8 @@ fun AlbumCard(album: Album, onClick: () -> Unit) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                color = Ink
             )
             Text(
                 "${album.displayArtist} · ${album.songCount} lagu",
@@ -228,7 +230,8 @@ fun BackBar(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = Ink
             )
             if (subtitle != null) {
                 Text(
