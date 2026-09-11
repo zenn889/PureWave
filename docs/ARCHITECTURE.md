@@ -38,9 +38,14 @@ Indonesia, singkat tapi lengkap.
 Root: `app/src/main/java/com/zenn889/putar/`
 
 Inti aplikasi:
-- `MainActivity.kt` (~1.500 baris) — jantung app: izin, pemindaian pustaka,
-  state (tab, pencarian, pemutar, sheet), dan seluruh perakitan layar.
-  Function utamanya `PlayerApp()`.
+- `MainActivity.kt` (~1.430 baris) — jantung app: izin, pemindaian pustaka,
+  state (tab, pencarian, pemutar, sheet), dan perakitan layar.
+  Function utamanya `PlayerApp()`. Sisa besar di sini adalah komposisi
+  `PlayerApp` sendiri; pemecahannya bertahap (lihat docs/AUDIT.md temuan #19).
+  Helper murni sudah dipindah keluar: `ui/SearchSort.kt` (sortir & pencarian),
+  `ui/PlayerSupport.kt` (`toMediaItem`, `readMirror`, `fmtSpeed`, `nextSpeed`,
+  `currentMediaItemUri`), `ui/LibraryHeader.kt` (header + chip + sapaan),
+  `ui/SleepTimerDialog.kt`, `ui/ScreenStates.kt` (layar izin & pustaka kosong).
 - `PlaybackService.kt` — service Media3: player ExoPlayer, audio focus,
   pause saat headset dicabut, tempel EQ ke sesi audio, dorong info ke widget.
 - `AudioFx.kt` — Equalizer & BassBoost native (`android.media.audiofx`).

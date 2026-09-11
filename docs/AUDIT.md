@@ -65,9 +65,10 @@ INTERNET di manifest.
 | 16 | Password `putar-release.jks` (kunci rilis v2.7.0–v2.15.0) hilang dan tidak ada cadangannya — keystore PKCS12 tidak bisa dibuka tanpa password | tinggi (kesinambungan rilis) | **Kunci baru dibuat (v2.16.0)** di `~/keystores/putar-release.jks` (PKCS12, alias `putar`, RSA 2048, 10000 hari, DN sama). Konsekuensi: pengguna lama wajib uninstall dulu (ekspor `Cadangkan data` → uninstall → install → `Pulihkan data`), didokumentasikan di INSTALL.md + README. Password baru dicadangkan di password manager |
 | 17 | `Track.contentUri` bertipe `android.net.Uri` → model tidak bisa dipakai di unit test JVM (harus emulator/Robolectric), dan memaksa `.contentUri.toString()` di 27 tempat | sedang (testabilitas + kebersihan) | **Diperbaiki (refactor setelah v2.18.0)** — jadi `String`; 27 pemanggilan `.toString()` hilang, titik yang benar-benar butuh Uri memakai `Uri.parse`. Sekaligus logika sortir & pencarian diangkat ke `ui/SearchSort.kt` yang murni + 13 tes baru (total 25) |
 | 18 | Keputusan stack (tetap Kotlin vs pindah bahasa) tidak terdokumentasi sehingga bisa diperdebatkan ulang tiap sesi | ringan (dokumentasi) | **Ditulis (refactor setelah v2.18.0)** di `docs/STACK.md`: angka nyata, perbandingan lintas platform, syarat wajib kalau suatu hari pindah, dan pemicu peninjauan ulang |
+| 19 | `MainActivity.kt` 1.843 baris menampung UI layar (header, dialog, layar izin/kosong) + helper pemutar, sehingga perubahan kecil menyentuh file raksasa | sedang (perawatan) | **Potongan kedua (refactor setelah v2.18.0)**: 13 deklarasi dipindah ke `ui/LibraryHeader.kt`, `ui/PlayerSupport.kt`, `ui/SleepTimerDialog.kt`, `ui/ScreenStates.kt`, `buildAlbumsFrom` ke `ui/LibraryScreens.kt`; 38 import yatim dibuang. MainActivity 1.843 → 1.429 baris. Sisa: `PlayerApp` sendiri (~1.000 baris) belum dipecah |
 
 Status kompilasi (terakhir diperiksa setelah refactor di atas): **BUILD
-SUCCESSFUL** — `check_braces.py` bersih (33 file), `assembleDebug` tanpa
+SUCCESSFUL** — `check_braces.py` bersih (37 file), `assembleDebug` tanpa
 warning deprecasi, 25 unit test lolos, dan isi APK debug diperiksa lewat
 `aapt2 dump badging` + `xmltree` + `strings` pada dex.
 

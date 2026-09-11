@@ -15,30 +15,19 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Album
 import androidx.compose.material.icons.filled.Equalizer
 import androidx.compose.material.icons.filled.Favorite
@@ -47,25 +36,9 @@ import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
-import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -77,17 +50,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
-import androidx.media3.common.MediaItem
-import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -107,10 +74,12 @@ import com.zenn889.putar.ui.AddToPlaylistSheet
 import com.zenn889.putar.ui.AlbumCard
 import com.zenn889.putar.ui.ArtistRow
 import com.zenn889.putar.ui.BackBar
+import com.zenn889.putar.ui.EmptyLibraryScreen
 import com.zenn889.putar.ui.EqualizerSheet
 import com.zenn889.putar.ui.FolderRow
 import com.zenn889.putar.ui.HeroCard
 import com.zenn889.putar.ui.LibraryFilterDialog
+import com.zenn889.putar.ui.LibraryHeader
 import com.zenn889.putar.ui.LibraryList
 import com.zenn889.putar.ui.LibraryTab
 import com.zenn889.putar.ui.QuickAccessGrid
@@ -119,6 +88,7 @@ import com.zenn889.putar.ui.SectionHeader
 import com.zenn889.putar.ui.LyricsSheet
 import com.zenn889.putar.ui.MiniPlayer
 import com.zenn889.putar.ui.NowPlayingSheet
+import com.zenn889.putar.ui.PermissionScreen
 import com.zenn889.putar.ui.PlaylistBrowserSheet
 import com.zenn889.putar.ui.PlayerMirror
 import com.zenn889.putar.ui.ProgressState
@@ -128,6 +98,7 @@ import com.zenn889.putar.ui.QueueSheet
 import com.zenn889.putar.ui.RecentlyAddedRow
 import com.zenn889.putar.ui.SettingsSheet
 import com.zenn889.putar.ui.SimpleEmpty
+import com.zenn889.putar.ui.SleepTimerDialog
 import com.zenn889.putar.ui.SortMenuButton
 import com.zenn889.putar.ui.SortOption
 import com.zenn889.putar.ui.StatsDialog
@@ -138,21 +109,23 @@ import com.zenn889.putar.ui.VideoPlayback
 import com.zenn889.putar.ui.VideoPlayerScreen
 import com.zenn889.putar.ui.VideoRow
 import com.zenn889.putar.ui.WelcomeScreen
+import com.zenn889.putar.ui.buildAlbumsFrom
 import com.zenn889.putar.ui.buildArtistItems
 import com.zenn889.putar.ui.buildFolderItems
+import com.zenn889.putar.ui.currentMediaItemUri
 import com.zenn889.putar.ui.fmtMs
+import com.zenn889.putar.ui.fmtSpeed
 import com.zenn889.putar.ui.matchesQuery
 import com.zenn889.putar.ui.matchesTokens
+import com.zenn889.putar.ui.nextSpeed
 import com.zenn889.putar.ui.pipParams
+import com.zenn889.putar.ui.readMirror
 import com.zenn889.putar.ui.searchTokens
 import com.zenn889.putar.ui.sortedTracks
+import com.zenn889.putar.ui.toMediaItem
 import com.zenn889.putar.ui.toast
 import com.zenn889.putar.ui.theme.Coral
-import com.zenn889.putar.ui.theme.CoralBright
-import com.zenn889.putar.ui.theme.FaintInk
-import com.zenn889.putar.ui.theme.MutedInk
 import com.zenn889.putar.ui.theme.PutarTheme
-import com.zenn889.putar.ui.theme.SurfaceHigh
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -276,78 +249,6 @@ private fun buildTrackFromUri(context: Context, uri: Uri): Track? = runCatching 
         folder = null
     )
 }.getOrNull()
-
-private fun greetingLine(): String {
-    val h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-    return when (h) {
-        in 4..10 -> "Selamat pagi"
-        in 11..14 -> "Selamat siang"
-        in 15..17 -> "Selamat sore"
-        else -> "Selamat malam"
-    }
-}
-
-private fun Track.toMediaItem(): MediaItem =
-    MediaItem.Builder()
-        .setMediaId(contentUri)
-        .setUri(Uri.parse(contentUri))
-        .setMediaMetadata(
-            MediaMetadata.Builder()
-                .setTitle(title)
-                .setArtist(displayArtist)
-                .setArtworkUri(MusicRepository.albumArtUri(albumId))
-                .build()
-        )
-        .build()
-
-private fun currentMediaItemUri(c: MediaController?): String? =
-    c?.currentMediaItem?.mediaId
-
-private fun buildAlbumsFrom(tracks: List<Track>): List<Album> =
-    tracks.filter { it.albumId != null }
-        .groupBy { it.albumId!! }
-        .map { (_, list) ->
-            Album(
-                albumId = list.first().albumId!!,
-                title = list.first().albumTitle ?: "Tanpa album",
-                artist = list.first().artist,
-                songCount = list.size
-            )
-        }
-        .sortedBy { it.title.lowercase() }
-
-private fun readMirror(player: Player): PlayerMirror {
-    val meta = player.mediaMetadata
-    val has = player.mediaItemCount > 0
-    return PlayerMirror(
-        title = meta.title?.toString() ?: "",
-        artist = meta.artist?.toString() ?: "",
-        artwork = meta.artworkUri,
-        durationMs = player.duration.coerceAtLeast(0L),
-        positionMs = player.currentPosition.coerceAtLeast(0L),
-        playing = player.isPlaying,
-        shuffle = player.shuffleModeEnabled,
-        repeat = player.repeatMode,
-        hasMedia = has,
-        index = player.currentMediaItemIndex,
-        speed = player.playbackParameters.speed
-    )
-}
-
-private val SPEED_STEPS = floatArrayOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 2f)
-
-private fun fmtSpeed(speed: Float): String {
-    val s = SPEED_STEPS.minByOrNull { abs(it - speed) } ?: speed
-    val txt = if (s == s.toInt().toFloat()) s.toInt().toString()
-    else s.toString().trimEnd('0').trimEnd('.')
-    return "${txt}x"
-}
-
-private fun nextSpeed(current: Float): Float {
-    val idx = SPEED_STEPS.indexOfFirst { abs(it - current) < 0.01f }
-    val base = if (idx >= 0) idx else 2 // default 1x
-    return SPEED_STEPS[(base + 1) % SPEED_STEPS.size]
-}
 
 @Composable
 fun PlayerApp() {
@@ -1524,320 +1425,5 @@ fun PlayerApp() {
 
 }
 
-@Composable
-private fun LibraryHeader(
-    context: Context,
-    tab: LibraryTab,
-    totalSongs: Int,
-    rootSongs: Int,
-    rootAlbums: Int,
-    rootArtists: Int,
-    rootFolders: Int,
-    rootVideos: Int,
-    rootFavs: Int,
-    query: String,
-    onQueryChange: (String) -> Unit,
-    onOpenSettings: () -> Unit,
-    onPlayAllShuffled: () -> Unit,
-    onTabSelect: (LibraryTab) -> Unit,
-    showSort: Boolean,
-    sortChoice: SortOption,
-    onSortChange: (SortOption) -> Unit
-) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 10.dp, bottom = 4.dp)) {
-        // --- identitas aplikasi + sapaan ---
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(46.dp)
-                    .shadow(14.dp, RoundedCornerShape(16.dp), clip = false)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Brush.linearGradient(listOf(Color(0xFFFF8A5B), Color(0xFFC2330F)))),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Filled.GraphicEq,
-                    contentDescription = "PureWave",
-                    tint = Color(0xFFFFF8F2),
-                    modifier = Modifier.size(26.dp)
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    greetingLine(),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    "PureWave · pemutar offline",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MutedInk
-                )
-            }
-            if (showSort) {
-                SortMenuButton(current = sortChoice, onSelect = onSortChange)
-            }
-            IconButton(onClick = onOpenSettings) {
-                Icon(Icons.Filled.Settings, contentDescription = "Setelan", tint = MutedInk)
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        // --- kolom pencarian berbentuk pil ---
-        OutlinedTextField(
-            value = query,
-            onValueChange = onQueryChange,
-            singleLine = true,
-            placeholder = { Text("Cari lagu, album, artis…", color = FaintInk) },
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = MutedInk) },
-            trailingIcon = {
-                if (query.isNotEmpty()) {
-                    IconButton(onClick = { onQueryChange("") }) {
-                        Icon(Icons.Filled.Close, contentDescription = "Bersihkan", tint = FaintInk)
-                    }
-                }
-            },
-            shape = RoundedCornerShape(999.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Coral.copy(alpha = 0.75f),
-                unfocusedBorderColor = Color.Transparent,
-                focusedContainerColor = SurfaceHigh,
-                unfocusedContainerColor = SurfaceHigh,
-                cursorColor = Coral,
-                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-            ),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(Modifier.height(12.dp))
-
-        // --- chip statistik (sekaligus pintasan pindah tab) ---
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            item { StatChip("Lagu", rootSongs, tab == LibraryTab.LAGU) { onTabSelect(LibraryTab.LAGU) } }
-            item { StatChip("Album", rootAlbums, tab == LibraryTab.ALBUM) { onTabSelect(LibraryTab.ALBUM) } }
-            item { StatChip("Artis", rootArtists, tab == LibraryTab.ARTIS) { onTabSelect(LibraryTab.ARTIS) } }
-            item { StatChip("Folder", rootFolders, tab == LibraryTab.FOLDER) { onTabSelect(LibraryTab.FOLDER) } }
-            item { StatChip("Video", rootVideos, tab == LibraryTab.VIDEO) { onTabSelect(LibraryTab.VIDEO) } }
-            item { StatChip("Favorit", rootFavs, tab == LibraryTab.FAVORIT) { onTabSelect(LibraryTab.FAVORIT) } }
-            if (rootSongs > 0) {
-                item {
-                    Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = Coral,
-                        modifier = Modifier.clickable(onClick = onPlayAllShuffled)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 15.dp, vertical = 9.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                Icons.Filled.Shuffle,
-                                contentDescription = null,
-                                tint = Color(0xFF190902),
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                "Acak semua",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF190902)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(8.dp))
-        val info = when (tab) {
-            LibraryTab.LAGU ->
-                if (query.isBlank()) "$totalSongs lagu di perangkat" else "$rootSongs dari $totalSongs lagu"
-            LibraryTab.ALBUM ->
-                if (query.isBlank()) "$rootAlbums album" else "$rootAlbums album cocok"
-            LibraryTab.ARTIS ->
-                if (query.isBlank()) "$rootArtists artis" else "$rootArtists artis cocok"
-            LibraryTab.FOLDER ->
-                if (query.isBlank()) "$rootFolders folder" else "$rootFolders folder cocok"
-            LibraryTab.VIDEO ->
-                if (query.isBlank()) "$rootVideos video" else "$rootVideos video cocok"
-            LibraryTab.FAVORIT ->
-                if (query.isBlank()) "$rootFavs favorit" else "$rootFavs favorit cocok"
-        }
-        Text(
-            info,
-            style = MaterialTheme.typography.bodySmall,
-            color = MutedInk,
-            modifier = Modifier.padding(start = 4.dp)
-        )
-    }
-}
-
 /** Chip statistik di header — sekaligus pintasan pindah tab. */
-@Composable
-private fun StatChip(
-    label: String,
-    count: Int,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Surface(
-        shape = RoundedCornerShape(999.dp),
-        color = if (selected) Coral.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f),
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                label,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                color = if (selected) Coral else MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(Modifier.width(6.dp))
-            Text(
-                count.toString(),
-                style = MaterialTheme.typography.labelMedium,
-                color = if (selected) Coral else MutedInk
-            )
-        }
-    }
-}
 
-@Composable
-private fun SleepTimerDialog(
-    active: Boolean,
-    endOfTrackActive: Boolean,
-    songsActive: Boolean,
-    onCancel: () -> Unit,
-    onEndOfTrack: () -> Unit,
-    onPickSongs: (Int) -> Unit,
-    onPickMinutes: (Int) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface,
-        title = { Text("Sleep timer", fontWeight = FontWeight.Bold) },
-        text = {
-            Column {
-                if (active) {
-                    TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
-                        Text("Matikan sleep timer", color = Coral, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-                TextButton(onClick = onEndOfTrack, modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        "Setelah lagu ini selesai",
-                        modifier = Modifier.fillMaxWidth(),
-                        color = if (endOfTrackActive) Coral else MaterialTheme.colorScheme.onSurface,
-                        fontWeight = if (endOfTrackActive) FontWeight.Bold else FontWeight.Normal
-                    )
-                }
-                listOf(2, 3, 5, 10).forEach { n ->
-                    TextButton(
-                        onClick = { onPickSongs(n) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            if (n == 2) "2 lagu berikutnya" else "$n lagu berikutnya",
-                            modifier = Modifier.fillMaxWidth(),
-                            color = if (songsActive) Coral else MaterialTheme.colorScheme.onSurface,
-                            fontWeight = if (songsActive) FontWeight.Bold else FontWeight.Normal
-                        )
-                    }
-                }
-                listOf(10, 15, 30, 45, 60, 90).forEach { minutes ->
-                    TextButton(
-                        onClick = { onPickMinutes(minutes) },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            if (minutes < 60) "$minutes menit" else "1 jam ${minutes - 60} menit".trimEnd(),
-                            modifier = Modifier.fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Batal", color = MutedInk) }
-        }
-    )
-}
-
-@Composable
-private fun PermissionScreen(onRequest: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surfaceVariant) {
-            Icon(
-                Icons.Filled.MusicNote,
-                contentDescription = null,
-                tint = Coral,
-                modifier = Modifier.padding(20.dp).size(44.dp)
-            )
-        }
-        Spacer(Modifier.height(20.dp))
-        Text(
-            "putar butuh akses musik",
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "Izinkan akses audio agar putar bisa membaca semua lagu di penyimpanan HP-mu. " +
-                "Semua diputar lokal — tanpa internet, tanpa akun.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MutedInk,
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center
-        )
-        Spacer(Modifier.height(24.dp))
-        Button(
-            onClick = onRequest,
-            colors = ButtonDefaults.buttonColors(containerColor = Coral)
-        ) {
-            Text("Izinkan akses musik", color = Color(0xFF190902), fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-@Composable
-private fun EmptyLibraryScreen() {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            Icons.Filled.MusicNote,
-            contentDescription = null,
-            tint = FaintInk,
-            modifier = Modifier.size(56.dp)
-        )
-        Spacer(Modifier.height(14.dp))
-        Text(
-            "Tidak ada musik ditemukan",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            "Tidak ada file audio (durasi > 3 detik) di perangkat ini.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MutedInk,
-            textAlign = TextAlign.Center
-        )
-    }
-}

@@ -255,3 +255,16 @@ private fun initials(name: String): String {
         else -> (words[0].first().toString() + words[1].first()).uppercase()
     }
 }
+
+internal fun buildAlbumsFrom(tracks: List<Track>): List<Album> =
+    tracks.filter { it.albumId != null }
+        .groupBy { it.albumId!! }
+        .map { (_, list) ->
+            Album(
+                albumId = list.first().albumId!!,
+                title = list.first().albumTitle ?: "Tanpa album",
+                artist = list.first().artist,
+                songCount = list.size
+            )
+        }
+        .sortedBy { it.title.lowercase() }
