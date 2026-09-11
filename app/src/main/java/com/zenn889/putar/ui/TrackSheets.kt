@@ -228,7 +228,7 @@ fun PlaylistBrowserSheet(
     var showCreate by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val byUri = remember(tracks) { tracks.associateBy { it.contentUri.toString() } }
+    val byUri = remember(tracks) { tracks.associateBy { it.contentUri } }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -399,7 +399,7 @@ fun PlaylistBrowserSheet(
                                     contentDescription = "Turunkan urutan", tint = FaintInk)
                             }
                             IconButton(onClick = {
-                                onRemoveTrack(pl.name, track.contentUri.toString())
+                                onRemoveTrack(pl.name, track.contentUri)
                                 toast(context, "Dihapus dari playlist")
                             }) {
                                 Icon(Icons.Filled.Delete, contentDescription = "Hapus dari playlist",

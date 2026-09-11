@@ -63,10 +63,13 @@ INTERNET di manifest.
 | 14 | Properti `putarStoreFile` dipanggil `error()` saat konfigurasi Gradle → build **debug** pun gagal di mesin tanpa keystore (clone baru / mesin lain) | sedang (alur kerja) | **Diperbaiki (v2.16.0)** — signing config dibuat kondisional; rilis dijaga guardrail eksplisit di `app/build.gradle.kts` (tidak boleh dibangun tanpa keystore asli) |
 | 15 | `lintDebug` menyimpan 10 error warisan (7× `UnstableApi` media3, `startForegroundService` NewApi, 2× `AppLinkUrlError`) + 22 warning; `scripts/release.sh` tidak menjalankan lint, jadi tidak pernah terlihat | ringan (utang teknis) | Dibiarkan — pekerjaan v2.16.0 tidak menambah satu pun (13 error saat `pipParams()` ditulis, turun jadi 10 setelah diberi `@RequiresApi(O)`; 10 sisanya terbukti ada di baris v2.15.0 lewat `git show HEAD:<file>`). Kandidat: `@OptIn(UnstableApi::class)` + tambah lint ke alur rilis |
 | 16 | Password `putar-release.jks` (kunci rilis v2.7.0–v2.15.0) hilang dan tidak ada cadangannya — keystore PKCS12 tidak bisa dibuka tanpa password | tinggi (kesinambungan rilis) | **Kunci baru dibuat (v2.16.0)** di `~/keystores/putar-release.jks` (PKCS12, alias `putar`, RSA 2048, 10000 hari, DN sama). Konsekuensi: pengguna lama wajib uninstall dulu (ekspor `Cadangkan data` → uninstall → install → `Pulihkan data`), didokumentasikan di INSTALL.md + README. Password baru dicadangkan di password manager |
+| 17 | `Track.contentUri` bertipe `android.net.Uri` → model tidak bisa dipakai di unit test JVM (harus emulator/Robolectric), dan memaksa `.contentUri.toString()` di 27 tempat | sedang (testabilitas + kebersihan) | **Diperbaiki (refactor setelah v2.18.0)** — jadi `String`; 27 pemanggilan `.toString()` hilang, titik yang benar-benar butuh Uri memakai `Uri.parse`. Sekaligus logika sortir & pencarian diangkat ke `ui/SearchSort.kt` yang murni + 13 tes baru (total 25) |
+| 18 | Keputusan stack (tetap Kotlin vs pindah bahasa) tidak terdokumentasi sehingga bisa diperdebatkan ulang tiap sesi | ringan (dokumentasi) | **Ditulis (refactor setelah v2.18.0)** di `docs/STACK.md`: angka nyata, perbandingan lintas platform, syarat wajib kalau suatu hari pindah, dan pemicu peninjauan ulang |
 
-Status kompilasi: **BUILD SUCCESSFUL** v2.16.0 (`check_braces.py` bersih,
-`assembleDebug` tanpa warning deprecasi, APK debug diperiksa lewat `aapt2
-dump badging` + `xmltree` + `strings` pada dex).
+Status kompilasi (terakhir diperiksa setelah refactor di atas): **BUILD
+SUCCESSFUL** — `check_braces.py` bersih (33 file), `assembleDebug` tanpa
+warning deprecasi, 25 unit test lolos, dan isi APK debug diperiksa lewat
+`aapt2 dump badging` + `xmltree` + `strings` pada dex.
 
 ---
 
@@ -77,7 +80,8 @@ versionCode), daftar isi APK (`unzip -l`), cek kurung kurawal, sha256,
 pemeriksaan isi APK (`aapt2 dump xmltree` untuk layout widget, `strings` pada
 classes.dex untuk memastikan kode baru benar-benar ikut terpaket), serta
 **unit test JVM** (`./gradlew :app:testDebugUnitTest`) untuk logika murni —
-mis. parser tag ReplayGain dan perhitungan gain (12 tes sejak v2.18.0).
+25 tes (parser tag ReplayGain & perhitungan gain, sortir 10 pilihan, pencarian
+token/diakritik).
 
 Tidak bisa (harus di HP user atau emulator dengan KVM): perilaku tema
 terang/gelap, gesture, widget di home screen, EQ, PiP nyata, lirik, resume
@@ -122,6 +126,11 @@ Sudah selesai: PiP bersih (#9) dan progres di widget (#12) — v2.16.0.
 Urut-ulang lagu di playlist, sortir 10 pilihan (tersimpan), dan pencarian
 token/diakritik — v2.17.0.
 Normalisasi volume ReplayGain + 12 unit test + CI GitHub Actions — v2.18.0.
+
+Refactor setelah v2.18.0 (belum dirilis sebagai versi baru, menumpang rilis
+fitur berikutnya): `Track.contentUri` jadi String (model murni, 27 `.toString()`
+hilang), logika sortir & pencarian dipindah ke `ui/SearchSort.kt`, 13 tes baru
+(total 25), dan keputusan stack ditulis di `docs/STACK.md`.
 Catatan: normalisasi hanya bekerja pada file yang punya tag ReplayGain
 (MP3/FLAC); OGG/Opus dan M4A belum dibaca, dan hasilnya perlu dinilai telinga
 di HP karena mesin ini tidak punya perangkat audio.

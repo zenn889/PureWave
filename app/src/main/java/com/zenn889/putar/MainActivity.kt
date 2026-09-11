@@ -141,7 +141,11 @@ import com.zenn889.putar.ui.WelcomeScreen
 import com.zenn889.putar.ui.buildArtistItems
 import com.zenn889.putar.ui.buildFolderItems
 import com.zenn889.putar.ui.fmtMs
+import com.zenn889.putar.ui.matchesQuery
+import com.zenn889.putar.ui.matchesTokens
 import com.zenn889.putar.ui.pipParams
+import com.zenn889.putar.ui.searchTokens
+import com.zenn889.putar.ui.sortedTracks
 import com.zenn889.putar.ui.toast
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.CoralBright
@@ -264,7 +268,7 @@ private fun buildTrackFromUri(context: Context, uri: Uri): Track? = runCatching 
     val title = name?.substringBeforeLast('.')?.takeIf { it.isNotBlank() } ?: "Audio"
     Track(
         mediaId = 0L,
-        contentUri = uri,
+        contentUri = uri.toString(),
         title = title,
         artist = "",
         durationMs = 0L,
@@ -285,8 +289,8 @@ private fun greetingLine(): String {
 
 private fun Track.toMediaItem(): MediaItem =
     MediaItem.Builder()
-        .setMediaId(contentUri.toString())
-        .setUri(contentUri)
+        .setMediaId(contentUri)
+        .setUri(Uri.parse(contentUri))
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle(title)
@@ -298,63 +302,6 @@ private fun Track.toMediaItem(): MediaItem =
 
 private fun currentMediaItemUri(c: MediaController?): String? =
     c?.currentMediaItem?.mediaId
-
-/**
- * Urutkan daftar lagu. `plays` (jumlah putar) dan `recency` (posisi di daftar
- * terakhir diputar, 0 = paling baru) datang dari StatsStore dan hanya dipakai
- * dua opsi terakhir.
- */
-private fun sortedTracks(
-    list: List<Track>,
-    sort: SortOption,
-    plays: Map<String, Int> = emptyMap(),
-    recency: Map<String, Int> = emptyMap()
-): List<Track> = when (sort) {
-    SortOption.JUDUL -> list.sortedBy { it.title.lowercase() }
-    SortOption.JUDUL_ZA -> list.sortedByDescending { it.title.lowercase() }
-    SortOption.ARTIS -> list.sortedWith(
-        compareBy({ it.displayArtist.lowercase() }, { it.title.lowercase() })
-    )
-    SortOption.ALBUM -> list.sortedWith(
-        compareBy({ (it.albumTitle ?: "").lowercase() }, { it.title.lowercase() })
-    )
-    SortOption.TERBARU -> list.sortedByDescending { it.dateAddedMs }
-    SortOption.TERLAMA -> list.sortedBy { it.dateAddedMs }
-    SortOption.DURASI -> list.sortedBy { it.durationMs }
-    SortOption.DURASI_PANJANG -> list.sortedByDescending { it.durationMs }
-    SortOption.SERING -> list.sortedWith(
-        compareByDescending<Track> { plays[it.contentUri.toString()] ?: 0 }
-            .thenBy { it.title.lowercase() }
-    )
-    SortOption.TERAKHIR -> list.sortedWith(
-        compareBy<Track> { recency[it.contentUri.toString()] ?: Int.MAX_VALUE }
-            .thenBy { it.title.lowercase() }
-    )
-}
-
-/* ---------- pencarian: abaikan huruf besar/kecil & tanda diakritik ---------- */
-
-private fun normText(s: String): String =
-    java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
-        .replace(Regex("\\p{Mn}+"), "")
-        .lowercase()
-
-/** Kata kunci dipecah jadi token: "sheila adu" menemukan "Adu - Sheila On 7". */
-private fun searchTokens(q: String): List<String> =
-    normText(q).split(' ', '\t', '\n').filter { it.isNotBlank() }
-
-private fun matchesTokens(text: String, tokens: List<String>): Boolean {
-    if (tokens.isEmpty()) return true
-    val hay = normText(text)
-    return tokens.all { hay.contains(it) }
-}
-
-/** Cari di judul, artis, album, dan folder sekaligus. */
-private fun Track.matchesQuery(tokens: List<String>): Boolean =
-    matchesTokens(
-        listOfNotNull(title, displayArtist, albumTitle, folder).joinToString(" "),
-        tokens
-    )
 
 private fun buildAlbumsFrom(tracks: List<Track>): List<Album> =
     tracks.filter { it.albumId != null }
@@ -636,7 +583,7 @@ fun PlayerApp() {
     }
 
     // --- daftar per tab (root), dihitung sekali per perubahan ---
-    val songsByUri = remember(library) { library.associateBy { it.contentUri.toString() } }
+    val songsByUri = remember(library) { library.associateBy { it.contentUri } }
     val artistItems = remember(library) { buildArtistItems(library) }
     val folderItems = remember(library) { buildFolderItems(library) }
 
@@ -669,7 +616,7 @@ fun PlayerApp() {
         else videos.filter { matchesTokens(it.title, tokens) }
     }
     val favTracks = remember(library, favUris) {
-        library.filter { favUris.contains(it.contentUri.toString()) }
+        library.filter { favUris.contains(it.contentUri) }
     }
     val favQueryTracks = remember(favTracks, tokens, sortChoice, playsMap, recencyMap) {
         val base = if (tokens.isEmpty()) favTracks else favTracks.filter { it.matchesQuery(tokens) }
@@ -695,8 +642,8 @@ fun PlayerApp() {
     }
     val statsTop = remember(library, statsVersion) {
         val plays = StatsStore.playsMap(context)
-        library.filter { (plays[it.contentUri.toString()] ?: 0) > 0 }
-            .sortedByDescending { plays[it.contentUri.toString()] ?: 0 }
+        library.filter { (plays[it.contentUri] ?: 0) > 0 }
+            .sortedByDescending { plays[it.contentUri] ?: 0 }
             .take(10)
     }
 
@@ -788,7 +735,7 @@ fun PlayerApp() {
     }
 
     fun pickPlaylist(name: String) {
-        contextTrack?.let { PlaylistStore.addTrack(context, name, it.contentUri.toString()) }
+        contextTrack?.let { PlaylistStore.addTrack(context, name, it.contentUri) }
         reloadPlaylists()
         contextTrack = null
         showAddToPlaylist = false
@@ -797,7 +744,7 @@ fun PlayerApp() {
 
     fun createPlaylistWithContextTrack(name: String) {
         val tr = contextTrack
-        val ok = PlaylistStore.create(context, name, tr?.contentUri?.toString())
+        val ok = PlaylistStore.create(context, name, tr?.contentUri)
         reloadPlaylists()
         contextTrack = null
         showAddToPlaylist = false
@@ -1190,14 +1137,14 @@ fun PlayerApp() {
                                         count = rootSongs.size
                                     )
                                 }
-                                itemsIndexed(rootSongs, key = { _, t -> t.contentUri.toString() }) { index, track ->
+                                itemsIndexed(rootSongs, key = { _, t -> t.contentUri }) { index, track ->
                                     TrackRow(
                                         track = track,
-                                        isCurrent = track.contentUri.toString() == currentMediaItemUri(controller),
+                                        isCurrent = track.contentUri == currentMediaItemUri(controller),
                                         onClick = { playList(rootSongs, index, false) },
                                         onLongClick = { contextTrack = track; showContextMenu = true },
                                         onSwipeLeft = { addToQueue(track) },
-                                        onSwipeRight = { toggleFav(track.contentUri.toString()) }
+                                        onSwipeRight = { toggleFav(track.contentUri) }
                                     )
                                 }
                             }
@@ -1394,14 +1341,14 @@ fun PlayerApp() {
         val pMap = StatsStore.playsMap(context)
         val mMap = StatsStore.minutesMap(context)
         val topTracks = remember(library, statsVersion) {
-            library.filter { (pMap[it.contentUri.toString()] ?: 0) > 0 }
-                .sortedByDescending { pMap[it.contentUri.toString()] ?: 0 }
+            library.filter { (pMap[it.contentUri] ?: 0) > 0 }
+                .sortedByDescending { pMap[it.contentUri] ?: 0 }
                 .take(10)
         }
         val rows = remember(statsVersion) {
             topTracks.mapIndexed { i, t ->
-                val p = pMap[t.contentUri.toString()] ?: 0
-                val m = (mMap[t.contentUri.toString()] ?: 0L) / 60_000L
+                val p = pMap[t.contentUri] ?: 0
+                val m = (mMap[t.contentUri] ?: 0L) / 60_000L
                 "${i + 1}. ${t.title} — ${t.displayArtist}  ·  ${p}× · ${m} mnt"
             }
         }
@@ -1437,7 +1384,7 @@ fun PlayerApp() {
         val tr = contextTrack!!
         TrackContextSheet(
             track = tr,
-            isFavorite = tr.contentUri.toString() in favUris,
+            isFavorite = tr.contentUri in favUris,
             onPlayNow = {
                 playList(listOf(tr), 0, false)
                 contextTrack = null
@@ -1451,7 +1398,7 @@ fun PlayerApp() {
                 contextTrack = null
             },
             onToggleFavorite = {
-                toggleFav(tr.contentUri.toString())
+                toggleFav(tr.contentUri)
                 contextTrack = null
             },
             onAddToPlaylist = {

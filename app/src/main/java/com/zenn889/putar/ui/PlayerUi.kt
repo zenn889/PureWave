@@ -832,10 +832,10 @@ fun LibraryList(
             start = 8.dp, end = 8.dp, top = 4.dp, bottom = 16.dp
         )
     ) {
-        itemsIndexed(tracks, key = { _, t -> t.contentUri.toString() }) { index, track ->
+        itemsIndexed(tracks, key = { _, t -> t.contentUri }) { index, track ->
             TrackRow(
                 track = track,
-                isCurrent = track.contentUri.toString() == currentMediaId,
+                isCurrent = track.contentUri == currentMediaId,
                 onClick = { onPlay(index) },
                 onLongClick = onLongClickTrack?.let { { it(track) } }
             )

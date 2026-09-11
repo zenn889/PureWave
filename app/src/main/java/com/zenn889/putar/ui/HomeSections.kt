@@ -96,7 +96,7 @@ fun TrackStrip(
     Column {
         SectionHeader(title, tracks.size)
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp)) {
-            items(tracks, key = { it.contentUri.toString() }) { track ->
+            items(tracks, key = { it.contentUri }) { track ->
                 val idx = tracks.indexOf(track)
                 Column(
                     modifier = Modifier

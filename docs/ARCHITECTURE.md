@@ -51,7 +51,10 @@ Inti aplikasi:
 
 Data (`data/`):
 - `Track.kt` / `VideoItem.kt` — model lagu & video (uri, judul, artist,
-  durasi, album, folder, `filePath`, tanggal tambah).
+  durasi, album, folder, `filePath`, tanggal tambah). `Track.contentUri`
+  disimpan sebagai **String** (bukan `android.net.Uri`) supaya modelnya murni:
+  bisa dipakai di unit test JVM dan tidak perlu `.toString()` di ~27 tempat.
+  `VideoItem` masih memakai `Uri` (dipakai langsung untuk thumbnail/player).
 - `MusicRepository.kt` — query MediaStore: `loadLibrary()`, `loadAlbums()`,
   `loadVideos()`, `albumArtUri()`.
 - `FavStore.kt`, `PlaylistStore.kt`, `SessionStore.kt` (auto-resume),
@@ -63,6 +66,8 @@ Data (`data/`):
 
 UI (`ui/`):
 - `theme/Theme.kt` — **semua warna & tipografi** (lihat bagian 3).
+- `SearchSort.kt` — logika sortir & pencarian pustaka (murni, tanpa Android,
+  dipakai `MainActivity`, diuji `app/src/test/.../SearchSortTest.kt`).
 - `PlayerUi.kt` — baris lagu, `MiniPlayer`, `NowPlayingSheet` (layar pemutar
   penuh + ambience), `LibraryList`, `AlbumArt`, `ProgressState`, `fmtMs`.
 - `LibraryScreens.kt` — enum `LibraryTab`, `LibraryTabBar` (versi lama),

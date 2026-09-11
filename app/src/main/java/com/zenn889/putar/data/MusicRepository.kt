@@ -62,7 +62,7 @@ class MusicRepository(private val context: Context) {
                     result.add(
                         Track(
                             mediaId = id,
-                            contentUri = ContentUris.withAppendedId(collection, id),
+                            contentUri = ContentUris.withAppendedId(collection, id).toString(),
                             title = c.getString(iTitle)?.ifBlank { "Tanpa judul" } ?: "Tanpa judul",
                             artist = c.getString(iArtist)?.trim().orEmpty().let {
                                 if (it.equals("<unknown>", true)) "" else it

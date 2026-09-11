@@ -1,11 +1,14 @@
 package com.zenn889.putar.data
 
-import android.net.Uri
-
 /** Satu lagu dari pustaka MediaStore. */
 data class Track(
     val mediaId: Long,
-    val contentUri: Uri,
+    /**
+     * Content-URI lagu, disimpan sebagai String (bukan android.net.Uri) supaya
+     * model ini murni: bisa dipakai di unit test JVM tanpa emulator, dan tidak
+     * perlu `.toString()` di puluhan tempat pemakaian.
+     */
+    val contentUri: String,
     val title: String,
     val artist: String,
     val durationMs: Long,
