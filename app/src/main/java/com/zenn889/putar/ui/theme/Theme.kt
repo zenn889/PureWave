@@ -282,5 +282,14 @@ fun PutarTheme(content: @Composable () -> Unit) {
         }
     }
 
-    MaterialTheme(colorScheme = scheme, typography = PureWaveTypography, content = content)
+    // Penting: MaterialTheme TIDAK menetapkan LocalContentColor. Bawaannya
+    // hitam, sehingga Text tanpa `color =` menjadi hitam di atas latar gelap
+    // dan tidak terlihat (kejadian di baris artis/folder/video). Ditetapkan di
+    // sini supaya seluruh aplikasi punya tinta yang benar tanpa harus setiap
+    // Text menyebut warnanya sendiri.
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.material3.LocalContentColor provides scheme.onBackground
+    ) {
+        MaterialTheme(colorScheme = scheme, typography = PureWaveTypography, content = content)
+    }
 }

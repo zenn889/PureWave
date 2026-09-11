@@ -78,6 +78,7 @@ import com.zenn889.putar.data.VideoItem
 import com.zenn889.putar.data.VideoPosStore
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.FaintInk
+import com.zenn889.putar.ui.theme.Ink
 import com.zenn889.putar.ui.theme.MutedInk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -200,7 +201,8 @@ fun VideoRow(item: VideoItem, onClick: () -> Unit) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                color = Ink
             )
             Text(
                 "Video · ketuk untuk memutar",

@@ -149,7 +149,8 @@ fun ArtistRow(name: String, songCount: Int, onClick: () -> Unit) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                color = Ink
             )
             Text(
                 if (songCount == 1) "1 lagu" else "$songCount lagu",
@@ -191,7 +192,8 @@ fun FolderRow(item: FolderItem, onClick: () -> Unit) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                color = Ink
             )
             Text(
                 item.path.ifBlank { "Penyimpanan utama" } + " · ${item.songCount} lagu",

@@ -238,15 +238,24 @@ Aturan saat menambah layar baru: **jangan** menulis angka dp langsung untuk
 sudut/jarak/bayangan/durasi — ambil dari token. Kalau butuh nilai yang belum
 ada, tambahkan dulu di `Tokens.kt` supaya tetap satu bahasa.
 
-Aturan warna teks (dipelajari dari kesalahan di v2.19.0): teks judul **wajib**
-memakai warna tema eksplisit — `Ink` (judul), `MutedInk` (keterangan),
-`FaintInk` (informasi sekunder) — dan **tidak boleh** mengandalkan warna
-bawaan komponen. Warna bawaan bisa berbeda antar mode tema, mengikuti warna
-wallpaper saat tema dinamis aktif, atau hilang begitu komponen berpindah
-induk; di v2.19.0 baris daftar yang kotaknya dihapus membuat judul lagu
-terlihat menyatu dengan latar di tema gelap. Karena itu judul lagu di daftar,
-mini player, layar pemutar, kartu album, bar judul, dan baris playlist
-semuanya menyebut warnanya sendiri.
+Aturan warna teks (dipelajari dari kesalahan di v2.19.0–v2.19.1): **MaterialTheme
+tidak menetapkan `LocalContentColor`** — bawaannya hitam, sehingga `Text` tanpa
+`color =` menjadi hitam di atas latar gelap dan tidak terlihat (kejadian di
+baris artis/folder/video). Dua lapis pertahanan:
+
+1. `PutarTheme` menetapkan `LocalContentColor` = `onBackground`, jadi seluruh
+   aplikasi otomatis memakai tinta yang benar walau ada `Text` yang lupa
+   menyebut warna. Kalau kelak ada layar yang teksnya hilang, periksa dulu
+   apakah layar itu membuat `Surface`/kontainer dengan `contentColor` sendiri.
+2. Teks judul **sebaiknya** tetap menyebut warnanya sendiri — `Ink` (judul),
+   `MutedInk` (keterangan), `FaintInk` (informasi sekunder) — supaya tidak
+   bergantung pada konteks induk. Skrip pemeriksa:
+   `workspace/cari-teks-tanpa-warna.py` memindai pemanggilan `Text` yang belum
+   menyebut warna.
+
+Warna bawaan bisa berbeda antar mode tema, mengikuti warna wallpaper saat tema
+dinamis aktif, atau berubah begitu komponen berpindah induk; itulah sebabnya
+dua lapis di atas dipakai, bukan salah satu saja.
 
 ### 4i. Normalisasi volume (ReplayGain)
 Alur: tag file dibaca → gain dihitung → diterapkan sebagai volume pemutar.
