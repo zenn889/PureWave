@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("app.cash.paparazzi")
 }
 
 // Keystore rilis hanya ada di mesin yang memegang kuncinya. Kalau properti
@@ -96,4 +97,7 @@ dependencies {
 
     // unit test (JVM, tanpa perangkat)
     testImplementation("junit:junit:4.13.2")
+
+    // screenshot test tampilan (Paparazzi, JVM tanpa emulator)
+    testImplementation("app.cash.paparazzi:paparazzi:2.0.0-alpha02")
 }

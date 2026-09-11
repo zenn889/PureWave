@@ -285,8 +285,21 @@ dan satu tes unit di `app/src/test/java/com/zenn889/putar/data/`.
 ### 4j. Tes & CI
 - Unit test JVM: `app/src/test/java/...` (`./gradlew :app:testDebugUnitTest`),
   JUnit 4. Cocok untuk logika murni (parser tag, perhitungan gain, util sortir).
-- CI: `.github/workflows/ci.yml` menjalankan cek kurung, unit test, dan
-  `assembleDebug` di setiap push ke `main` dan setiap pull request.
+- Screenshot test: `app/src/test/java/com/zenn889/putar/ui/VisualScreenshotsTest.kt`
+  memakai **Paparazzi** (render Compose di JVM tanpa emulator). Golden image
+  disimpan di `app/src/test/snapshots/images/`. Membuat baseline baru:
+  `./gradlew :app:recordPaparazziDebug`; memeriksa perubahan:
+  `./gradlew :app:verifyPaparazziDebug` (gagal kalau ada yang berubah).
+  Tujuan utamanya menangkap regresi tampilan seperti "teks menyatu dengan
+  latar" yang memaksa tiga rilis perbaikan (v2.19.1–v2.19.2).
+- CI: `.github/workflows/ci.yml` menjalankan cek kurung, unit test,
+  `assembleDebug`, dan `verifyPaparazziDebug` di setiap push ke `main` dan
+  setiap pull request.
+
+Toolchain (dinaikkan saat memasang Paparazzi, karena versi stabilnya belum
+kenal compileSdk 36 — lihat cashapp/paparazzi#1877): AGP 8.10.1, Kotlin
+2.1.21, Gradle 8.14.3, Paparazzi 2.0.0-alpha02, Compose BOM 2024.12.01,
+compileSdk/targetSdk 36, JDK 21.
 
 ---
 
