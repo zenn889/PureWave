@@ -26,15 +26,10 @@ jobs:
       - name: Unit test + build APK debug
         run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon
 
-      - name: Screenshot test (cek tampilan tak berubah)
-        run: ./gradlew :app:verifyPaparazziDebug --no-daemon
-
       - name: Simpan laporan tes
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: laporan-tes
-          path: |
-            app/build/reports/tests/testDebugUnitTest/
-            app/build/reports/paparazzi/debug/
+          path: app/build/reports/tests/testDebugUnitTest/
           if-no-files-found: ignore

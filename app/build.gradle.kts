@@ -2,7 +2,6 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("app.cash.paparazzi")
 }
 
 // Keystore rilis hanya ada di mesin yang memegang kuncinya. Kalau properti
@@ -20,8 +19,8 @@ android {
         applicationId = "com.zenn889.putar"
         minSdk = 24
         targetSdk = 36
-        versionCode = 43
-        versionName = "2.20.0"
+        versionCode = 44
+        versionName = "2.21.0"
     }
 
     signingConfigs {
@@ -97,7 +96,4 @@ dependencies {
 
     // unit test (JVM, tanpa perangkat)
     testImplementation("junit:junit:4.13.2")
-
-    // screenshot test tampilan (Paparazzi, JVM tanpa emulator)
-    testImplementation("app.cash.paparazzi:paparazzi:2.0.0-alpha02")
 }

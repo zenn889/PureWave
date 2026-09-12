@@ -2,6 +2,8 @@ package com.zenn889.putar.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -49,6 +52,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.pm.PackageInfoCompat
@@ -59,6 +63,35 @@ import com.zenn889.putar.ui.theme.CoralBright
 import com.zenn889.putar.ui.theme.FaintInk
 import com.zenn889.putar.ui.theme.Ink
 import com.zenn889.putar.ui.theme.MutedInk
+
+/**
+ * Teks lisensi MIT. Ditampilkan di dalam aplikasi (Setelan → Info aplikasi →
+ * "Lihat teks lisensi") supaya notis hak cipta & izin ikut menyertai setiap
+ * salinan APK yang disebarkan, bukan hanya ada di repo GitHub.
+ */
+private val MIT_LICENSE_TEXT = """
+    MIT License
+
+    Copyright (c) 2026 zenn889
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+""".trimIndent()
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,6 +111,7 @@ fun SettingsSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showAbout by remember { mutableStateOf(false) }
     var showTheme by remember { mutableStateOf(false) }
+    var showLicense by remember { mutableStateOf(false) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -260,14 +294,69 @@ fun SettingsSheet(
                     }
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "Sumber & rilis: github.com/zenn889/music-player",
+                        "Sumber & rilis: github.com/zenn889/PureWave",
                         style = MaterialTheme.typography.bodySmall,
-                        color = FaintInk
+                        color = FaintInk,
+                        textAlign = TextAlign.Center
                     )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "MIT License · © 2026 zenn889",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = FaintInk,
+                        textAlign = TextAlign.Center
+                    )
+                    TextButton(onClick = {
+                        showAbout = false
+                        showLicense = true
+                    }) {
+                        Text(
+                            "Lihat teks lisensi",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Coral,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showAbout = false }) { Text("Tutup", color = Coral) }
+            }
+        )
+    }
+
+    // Notis lisensi ikut disertakan di dalam aplikasi, bukan hanya di repo —
+    // MIT meminta notis hak cipta & izin ini menyertai setiap salinan.
+    if (showLicense) {
+        AlertDialog(
+            onDismissRequest = { showLicense = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = {
+                Text(
+                    "Lisensi",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = Ink
+                )
+            },
+            text = {
+                Column(
+                    Modifier
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        MIT_LICENSE_TEXT,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MutedInk
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showLicense = false
+                    showAbout = true
+                }) { Text("Kembali", color = Coral) }
             }
         )
     }

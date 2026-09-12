@@ -70,7 +70,7 @@ INTERNET di manifest.
 | 20 | Ukuran visual (sudut, bayangan, durasi animasi) ditulis langsung di tempat pemakaian sehingga permukaan yang mirip terlihat berbeda-beda — sudut 2–30 dp & bayangan 6–30 dp bercampur, dan baris daftar dipaksa jadi kartu di setiap baris (bising) | sedang (rasa visual) | **Ditutup v2.19.0**: `ui/theme/Tokens.kt` (Radius/Space/Elev/Motion + `pressScale`), daftar lagu dibuat tanpa kotak per baris, kartu album/artis/folder + kartu sambutan + kolom cari + bar navigasi bawah diseragamkan dan diberi animasi. Prinsip & pedoman pemakaian ditulis di docs/ARCHITECTURE.md bagian 4h |
 
 Status kompilasi (terakhir diperiksa setelah refactor di atas): **BUILD
-SUCCESSFUL** — `check_braces.py` bersih (38 file), `assembleDebug` tanpa
+SUCCESSFUL** — `check_braces.py` bersih (38 file di `app/src/main`), `assembleDebug` tanpa
 warning deprecasi, 25 unit test lolos, dan isi APK debug diperiksa lewat
 `aapt2 dump badging` + `xmltree` + `strings` pada dex.
 

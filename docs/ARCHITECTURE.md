@@ -284,27 +284,24 @@ dan satu tes unit di `app/src/test/java/com/zenn889/putar/data/`.
 
 ### 4j. Tes & CI
 - Unit test JVM: `app/src/test/java/...` (`./gradlew :app:testDebugUnitTest`),
-  JUnit 4. Cocok untuk logika murni (parser tag, perhitungan gain, util sortir).
-- Screenshot test: `app/src/test/java/com/zenn889/putar/ui/VisualScreenshotsTest.kt`
-  memakai **Paparazzi** (render Compose di JVM tanpa emulator). Golden image
-  disimpan di `app/src/test/snapshots/images/`. Membuat baseline baru:
-  `./gradlew :app:recordPaparazziDebug`; memeriksa perubahan:
-  `./gradlew :app:verifyPaparazziDebug` (gagal kalau ada yang berubah).
-  Tujuan utamanya menangkap regresi tampilan seperti "teks menyatu dengan
-  latar" yang memaksa tiga rilis perbaikan (v2.19.1–v2.19.2).
-  **Wajib deterministik**: apa pun yang berubah sendiri (jam, tanggal, nomor
-  acak, animasi, isi penyimpanan) harus disuntik sebagai parameter. Pelajaran
-  dari CI pertama: kepala pustaka memuat sapaan yang bergantung jam, sehingga
-  gambar acuan selalu beda saat CI berjalan di jam lain — sejak itu sapaan
-  masuk lewat parameter `greeting`.
-- CI: `.github/workflows/ci.yml` menjalankan cek kurung, unit test,
-  `assembleDebug`, dan `verifyPaparazziDebug` di setiap push ke `main` dan
-  setiap pull request.
+  JUnit 4 (25 tes). Cocok untuk logika murni (parser tag, perhitungan gain,
+  util sortir, dan pencarian).
+- CI: `.github/workflows/ci.yml` menjalankan cek kurung, unit test, dan
+  `assembleDebug` di setiap push ke `main` dan setiap pull request.
 
-Toolchain (dinaikkan saat memasang Paparazzi, karena versi stabilnya belum
-kenal compileSdk 36 — lihat cashapp/paparazzi#1877): AGP 8.10.1, Kotlin
-2.1.21, Gradle 8.14.3, Paparazzi 2.0.0-alpha02, Compose BOM 2024.12.01,
-compileSdk/targetSdk 36, JDK 21.
+Penilaian tampilan dilakukan manual di HP. Screenshot test otomatis (Paparazzi)
+pernah dicoba di v2.20.0 lalu **dicabut di v2.21.0** atas permintaan pemilik
+proyek: build jadi lebih lama dan hasilnya lebih cepat dinilai langsung di
+perangkat. Yang tetap berguna dari percobaan itu: parameter `greeting` di
+`LibraryHeader` (sapaan yang bergantung jam bisa disuntik — syarat wajib kalau
+kelak uji tampilan dipasang lagi, karena gambar acuan harus deterministik) dan
+toolchain yang lebih baru.
+
+Toolchain: AGP 8.10.1, Kotlin 2.1.21, Gradle 8.14.3, Compose BOM 2024.12.01,
+compileSdk/targetSdk 36, JDK 21. Dinaikkan di v2.20.0 karena Paparazzi versi
+stabil belum kenal compileSdk 36 (cashapp/paparazzi#1877), lalu dipertahankan
+setelah Paparazzi dicabut karena sudah terbukti hijau (debug, tes, dan build
+rilis R8).
 
 ---
 
