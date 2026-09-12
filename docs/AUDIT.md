@@ -146,6 +146,9 @@ tanpa lingkaran loading; total 59 tes — v2.24.0.
 Pemutar video: kecepatan putar 0,5×–2× (memakai `fmtSpeed`/`nextSpeed` yang
 sama dengan pemutar musik) + mode tampilan Fit/Isi/Zoom; penghitung antrian
 pindah ke baris judul; total 65 tes — v2.24.1.
+Sentuhan pemutar video: ketuk dua kali di sisi kiri/kanan = ±10 detik, geser
+atas-bawah = kecerahan jendela (dikembalikan saat keluar); total 69 tes —
+v2.24.2.
 
 Catatan: hasil normalisasi volume tetap perlu dinilai telinga di HP, karena
 mesin build ini tidak punya perangkat audio. Yang bisa dibuktikan di sini

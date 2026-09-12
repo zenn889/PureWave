@@ -8,15 +8,19 @@ import android.os.Build
 import android.util.Rational
 import android.util.Size
 import android.view.ViewGroup
+import android.view.WindowManager
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Movie
@@ -61,6 +66,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
@@ -91,6 +97,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.roundToInt
 
 /** Status pemutaran video (dipakai untuk PiP saat user tekan Home). */
 object VideoPlayback {
@@ -137,6 +144,40 @@ internal val FIT_MODES = listOf(
     FitMode("Isi", AspectRatioFrameLayout.RESIZE_MODE_FILL, "isi, gambar bisa melar"),
     FitMode("Zoom", AspectRatioFrameLayout.RESIZE_MODE_ZOOM, "zoom, tepi terpotong")
 )
+
+/* ---------- kecerahan layar ---------- */
+
+/** Kecerahan layar yang sedang berlaku (0..1) — titik awal saat mulai menggeser. */
+private fun systemBrightness(context: Context): Float = runCatching {
+    android.provider.Settings.System.getInt(
+        context.contentResolver,
+        android.provider.Settings.System.SCREEN_BRIGHTNESS
+    ) / 255f
+}.getOrDefault(0.5f).coerceIn(0.05f, 1f)
+
+/**
+ * Kecerahan setelah menggeser sejauh [dyPx] piksel. Geser ke atas (dy negatif)
+ * = lebih terang, sesuai kebiasaan pemutar video. 700 px kira-kira mewakili
+ * seluruh rentang layar, dan hasilnya selalu dijepit ke 2%–100%.
+ */
+internal fun brightnessAfterDrag(base: Float, dyPx: Float): Float =
+    (base - dyPx / 700f).coerceIn(0.02f, 1f)
+
+/**
+ * Ubah kecerahan jendela layar pemutar. Hanya berlaku untuk jendela Activity
+ * ini — tidak menyentuh setelan sistem, dan tidak butuh izin apa pun. Nilai
+ * [WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE] mengembalikannya ke
+ * kecerahan sistem (dipakai saat layar pemutar ditutup, supaya sisa aplikasi
+ * tidak ikut meredup).
+ */
+private fun applyWindowBrightness(activity: Activity?, value: Float) {
+    val act = activity ?: return
+    runCatching {
+        val attrs = act.window.attributes
+        attrs.screenBrightness = value
+        act.window.attributes = attrs
+    }
+}
 
 /* ---------- cache thumbnail video ---------- */
 
@@ -286,6 +327,15 @@ fun VideoPlayerScreen(
      * video, dan kembali Fit saat layar pemutar dibuka ulang.
      */
     var mode by remember { mutableIntStateOf(0) }
+    /**
+     * Kecerahan jendela saat menggeser atas-bawah. -1 = belum disentuh (ikut
+     * kecerahan sistem). Hanya berlaku untuk jendela ini dan dikembalikan ke
+     * bawaan sistem saat layar pemutar ditutup.
+     */
+    var brightness by remember { mutableFloatStateOf(-1f) }
+    var brightHint by remember { mutableStateOf(false) }
+    /** -1 = kilatan "mundur 10 detik", +1 = "maju 10 detik", 0 = tidak tampil. */
+    var seekFlash by remember { mutableIntStateOf(0) }
     val inPip by VideoPlayback.inPip
 
     // subtitle di sebelah video (.srt / .vtt / .ttml)
@@ -327,6 +377,29 @@ fun VideoPlayerScreen(
             exo = null
             VideoPlayback.active = false
             VideoPlayback.playing = false
+        }
+    }
+
+    // kecerahan layar dikembalikan ke bawaan sistem begitu layar ini ditutup,
+    // supaya tidak ikut meredupkan bagian aplikasi yang lain
+    DisposableEffect(Unit) {
+        onDispose {
+            applyWindowBrightness(activity, WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE)
+        }
+    }
+
+    // penanda geser kecerahan & ketuk-dua-kali hilang sendiri
+    LaunchedEffect(brightHint) {
+        if (brightHint) {
+            delay(900)
+            brightHint = false
+        }
+    }
+
+    LaunchedEffect(seekFlash) {
+        if (seekFlash != 0) {
+            delay(700)
+            seekFlash = 0
         }
     }
 
@@ -434,13 +507,130 @@ fun VideoPlayerScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // 2) penangkap ketukan (tidak aktif selama PiP)
+        // 2) penangkap ketukan & geser (tidak aktif selama PiP)
         if (!inPip) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clickable { controls = !controls }
-            )
+                    // geser atas-bawah = kecerahan layar
+                    .pointerInput(Unit) {
+                        detectVerticalDragGestures(
+                            onDragStart = {
+                                if (brightness < 0f) brightness = systemBrightness(context)
+                                brightHint = true
+                            },
+                            onDragEnd = {},
+                            onDragCancel = {}
+                        ) { change, dy ->
+                            change.consume()
+                            val base = if (brightness < 0f) systemBrightness(context) else brightness
+                            brightness = brightnessAfterDrag(base, dy)
+                            applyWindowBrightness(activity, brightness)
+                            brightHint = true
+                        }
+                    }
+            ) {
+                Row(Modifier.fillMaxSize()) {
+                    // Sisi kiri & kanan: ketuk dua kali = mundur/maju 10 detik.
+                    // Ketukan tunggal di sisi juga menampilkan/menyembunyikan
+                    // kontrol, tapi tertunda sebentar karena aplikasi menunggu
+                    // kemungkinan ketukan kedua — itulah harga ketuk-dua-kali.
+                    // (Bagian tengah tidak menunggu, jadi terasa seketika.)
+                    Box(
+                        modifier = Modifier
+                            .weight(0.7f)
+                            .fillMaxHeight()
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onTap = { controls = !controls },
+                                    onDoubleTap = {
+                                        skipBy(-10)
+                                        seekFlash = -1
+                                    }
+                                )
+                            }
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(0.6f)
+                            .fillMaxHeight()
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = { controls = !controls })
+                            }
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(0.7f)
+                            .fillMaxHeight()
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onTap = { controls = !controls },
+                                    onDoubleTap = {
+                                        skipBy(10)
+                                        seekFlash = 1
+                                    }
+                                )
+                            }
+                    )
+                }
+            }
+        }
+
+        // penanda geser kecerahan — di bawah bar atas supaya tidak menutupinya
+        if (brightHint && !inPip) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 96.dp)
+                    .background(Color(0xCC000000), RoundedCornerShape(Radius.sm))
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.BrightnessHigh,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "${(brightness.coerceAtLeast(0f) * 100).roundToInt()}%",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // penanda ketuk-dua-kali: ikon + "10 detik" di sisi yang diketuk
+        if (seekFlash != 0 && !inPip) {
+            val back = seekFlash < 0
+            Box(
+                modifier = Modifier
+                    .align(if (back) Alignment.CenterStart else Alignment.CenterEnd)
+                    .padding(horizontal = 28.dp)
+                    .background(Color(0x99000000), CircleShape)
+                    .padding(20.dp)
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        if (back) Icons.Filled.FastRewind else Icons.Filled.FastForward,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "10 detik",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            }
         }
 
         if (controls && !inPip) {

@@ -96,6 +96,16 @@ UI (`ui/`):
   Catatan tata letak: penghitung antrian diletakkan **di dalam baris judul**
   (bukan lagi di ujung kanan bar atas) karena dua kontrol baru butuh ruang —
   tanpa itu judul video terpotong terlalu pendek di layar sempit.
+  Sentuhan (V6): area tontonan dibagi tiga — sisi kiri/kanan (35% masing-masing)
+  menerima **ketuk dua kali = mundur/maju 10 detik**, bagian tengah (30%)
+  hanya ketukan tunggal. Ketukan tunggal di sisi sengaja **tertunda** ±0,3 detik
+  karena Compose menunggu kemungkinan ketukan kedua; tengah tidak menunggu.
+  Geser atas-bawah mengubah **kecerahan jendela** lewat `applyWindowBrightness`
+  — hanya berlaku untuk jendela Activity, tidak butuh izin, dan **wajib
+  dikembalikan** ke `BRIGHTNESS_OVERRIDE_NONE` saat layar pemutar ditutup
+  (`DisposableEffect`), kalau tidak sisa aplikasi ikut meredup. Nilai awalnya
+  dibaca dari `Settings.System.SCREEN_BRIGHTNESS` (baca saja, tanpa izin);
+  perhitungannya ada di `brightnessAfterDrag` supaya arahnya bisa diuji.
 - `LyricsSheet.kt` — lirik bergulir.
 - `WelcomeScreen.kt` — onboarding sekali jalan.
 

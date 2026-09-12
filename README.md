@@ -10,6 +10,11 @@ Music player Android **native** (Kotlin + Jetpack Compose + Media3/ExoPlayer).
 Memutar semua musik dari penyimpanan internal HP. **Tanpa internet, tanpa
 akun, tanpa iklan.**
 
+> **v2.24.2**: pemutar video bisa dikendalikan dengan sentuhan — **ketuk dua
+> kali di sisi kiri/kanan** untuk mundur/maju 10 detik (dengan penanda di
+> layar), dan **geser atas-bawah** untuk kecerahan layar. Kecerahan hanya
+> berlaku selama menonton, dan kembali ke setelan sistem begitu keluar.
+>
 > **v2.24.1**: pemutar video dapat dua kontrol baru — **kecepatan putar**
 > (0,5× / 0,75× / 1× / 1,25× / 1,5× / 2×) dan **mode tampilan
 > Fit / Isi / Zoom**, sehingga video 4:3 atau layar lebar bisa dibuat memenuhi
@@ -92,7 +97,9 @@ akun, tanpa iklan.**
 - **Video**: tab Video memindai video di HP — ketuk untuk memutar
   fullscreen di dalam app (play/pause/seek), tetap offline. Di layar pemutar
   ada **kecepatan putar** (0,5×–2×, sama seperti pemutar musik) dan **mode
-  tampilan Fit / Isi / Zoom** untuk video 4:3 atau layar lebar.
+  tampilan Fit / Isi / Zoom** untuk video 4:3 atau layar lebar. Pakai sentuhan:
+  **ketuk dua kali di sisi kiri/kanan** = mundur/maju 10 detik, **geser
+  atas-bawah** = kecerahan layar.
 - **Auto-resume**: lagu terakhir + posisinya + antrian diingat; saat app
   dibuka lagi tinggal tekan play untuk melanjutkan.
 - **Antrian terlihat**: ikon antrian di layar pemutar penuh — lihat daftar
@@ -144,7 +151,7 @@ akun, tanpa iklan.**
 
 ## Unduh
 
-https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.24.1.apk`.
+https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.24.2.apk`.
 
 > **Pindah dari v2.7.0–v2.15.0 (wajib baca):** rilis v2.16.0 memakai kunci
 > penandatangan **baru**. Kunci lama (v2.7.0–v2.15.0) tidak bisa dipakai lagi
