@@ -122,18 +122,23 @@ emulator Android tidak bisa dipakai — PiP & widget tetap **perlu tes di HP**.
 6. Amankan kunci rilis: simpan password `putar-release.jks` (alias `putar`) di
    password manager dan taruh salinan `.jks` di dua tempat. Tanpa itu, satu
    mesin hilang = rilis berikutnya tidak bisa menimpa versi terpasang.
-7. Tambah dukungan tag ReplayGain untuk OGG/Opus dan M4A/MP4 (sekarang baru
-   ID3v2 & FLAC), plus tes unit untuk util sortir/pencarian.
+7. ~~Tambah dukungan tag ReplayGain untuk OGG/Opus dan M4A/MP4~~ — **selesai
+   v2.22.0** (Ogg/Vorbis, Opus, dan atom iTunes MP4/M4A termasuk `moov` di
+   akhir file; 7 tes baru). Yang tersisa dari butir ini: `R128_TRACK_GAIN`
+   Opus sengaja tidak dipakai karena acuan kenaringannya berbeda.
 
 Sudah selesai: PiP bersih (#9) dan progres di widget (#12) — v2.16.0.
 Urut-ulang lagu di playlist, sortir 10 pilihan (tersimpan), dan pencarian
 token/diakritik — v2.17.0.
 Normalisasi volume ReplayGain + 12 unit test + CI GitHub Actions — v2.18.0.
+Refactor `Track.contentUri` (String) + `ui/SearchSort.kt` + 13 tes (total 25) +
+`docs/STACK.md` — menumpang v2.19.0.
+`ui/theme/Tokens.kt` (sistem token tampilan) — v2.19.0; perbaikan warna teks
+bawaan tema (`LocalContentColor`) — v2.19.2; notis lisensi MIT di dalam app +
+perbaikan URL repo — v2.21.0.
+Dukungan ReplayGain OGG/Opus & M4A + `moov` di akhir file (total 32 tes) —
+v2.22.0.
 
-Refactor setelah v2.18.0 (belum dirilis sebagai versi baru, menumpang rilis
-fitur berikutnya): `Track.contentUri` jadi String (model murni, 27 `.toString()`
-hilang), logika sortir & pencarian dipindah ke `ui/SearchSort.kt`, 13 tes baru
-(total 25), dan keputusan stack ditulis di `docs/STACK.md`.
-Catatan: normalisasi hanya bekerja pada file yang punya tag ReplayGain
-(MP3/FLAC); OGG/Opus dan M4A belum dibaca, dan hasilnya perlu dinilai telinga
-di HP karena mesin ini tidak punya perangkat audio.
+Catatan: hasil normalisasi volume tetap perlu dinilai telinga di HP, karena
+mesin build ini tidak punya perangkat audio. Yang bisa dibuktikan di sini
+adalah pembacaan tagnya (unit test) — bukan seberapa enak hasilnya terdengar.

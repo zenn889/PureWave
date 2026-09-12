@@ -261,11 +261,14 @@ dua lapis di atas dipakai, bukan salah satu saja.
 Alur: tag file dibaca → gain dihitung → diterapkan sebagai volume pemutar.
 
 1. `data/ReplayGainReader.kt` — parser mandiri (tanpa library): ID3v2 `TXXX`
-   (`REPLAYGAIN_TRACK_GAIN` / `_PEAK`, v2.3 & v2.4 + sinkronisasi v2.2) dan
-   `RVA2`, serta blok FLAC `VORBIS_COMMENT`. Hanya 512 KB pertama file yang
-   dibaca. Sengaja murni (ByteArray masuk, data keluar) supaya bisa diuji unit
-   tanpa perangkat. Belum mendukung OGG/Opus dan MP4/M4A — file-nya tetap
-   diputar, hanya tanpa normalisasi.
+   (`REPLAYGAIN_TRACK_GAIN` / `_PEAK`, v2.3 & v2.4 + sinkronisasi v2.2), `RVA2`,
+   blok FLAC `VORBIS_COMMENT`, paket kepala OGG/Opus (blok Vorbis comment), dan
+   atom bebas iTunes di MP4/M4A. Kepala file dibaca sampai 512 KB; khusus MP4
+   yang menaruh atom `moov` di akhir file (tanpa faststart) potongan ekor
+   512 KB ikut diperiksa. Sengaja murni (ByteArray masuk, data keluar) supaya
+   bisa diuji unit tanpa perangkat. `R128_TRACK_GAIN` (Opus) sengaja tidak
+   dipakai karena acuan kenaringannya berbeda (-23 LUFS vs -18 LUFS
+   ReplayGain) — file seperti itu tetap diputar, hanya tanpa normalisasi.
 2. `data/VolumeNorm.kt` — setelan `volume_norm` di `putar_prefs`, cache gain
    per content-URI, `filePathFor()` (URI `file://` langsung; URI MediaStore
    lewat kolom `DATA`, sama seperti pencarian .lrc), dan `linearFor()` yang

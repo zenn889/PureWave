@@ -10,6 +10,10 @@ Music player Android **native** (Kotlin + Jetpack Compose + Media3/ExoPlayer).
 Memutar semua musik dari penyimpanan internal HP. **Tanpa internet, tanpa
 akun, tanpa iklan.**
 
+> **v2.22.0**: normalisasi volume kini juga membaca tag ReplayGain di
+> **OGG/Vorbis, Opus, dan M4A/MP4** (sebelumnya hanya MP3 & FLAC), termasuk
+> file M4A yang menaruh datanya di akhir file. 7 tes baru (total 32).
+>
 > **v2.21.0**: notis lisensi (MIT · © 2026 zenn889) kini ikut di dalam aplikasi
 > — Setelan → Info aplikasi → "Lihat teks lisensi", plus URL repo di dialog itu
 > diperbaiki (sebelumnya salah: `music-player`). Uji tampilan otomatis
@@ -97,7 +101,7 @@ akun, tanpa iklan.**
 - **Normalisasi volume** (opsional, Setelan): mengikuti tag ReplayGain di file
   — `REPLAYGAIN_TRACK_GAIN` + `_PEAK` — supaya kenyaringan antar lagu rata dan
   tetap aman dari clipping. Lagu tanpa tag dibiarkan apa adanya. Didukung:
-  MP3 (ID3v2) & FLAC; OGG/Opus dan M4A belum.
+  MP3 (ID3v2), FLAC, OGG & Opus (Vorbis comment), dan M4A/MP4 (atom iTunes).
 - **Sleep timer**: 10–90 menit, musik berhenti sendiri; status & sisa
   waktu tampil di layar pemutar.
 - **Kontrol di notifikasi & lock screen** + lanjut main di latar belakang
@@ -118,7 +122,7 @@ akun, tanpa iklan.**
 
 ## Unduh
 
-https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.21.0.apk`.
+https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.22.0.apk`.
 
 > **Pindah dari v2.7.0–v2.15.0 (wajib baca):** rilis v2.16.0 memakai kunci
 > penandatangan **baru**. Kunci lama (v2.7.0–v2.15.0) tidak bisa dipakai lagi
