@@ -108,7 +108,10 @@ class VisualScreenshotsTest {
             onTabSelect = {},
             showSort = true,
             sortChoice = SortOption.entries.first(),
-            onSortChange = {}
+            onSortChange = {},
+            // tetap, bukan mengikuti jam: supaya gambar acuan tidak berubah
+            // hanya karena CI dijalankan pagi/siang/sore/malam.
+            greeting = "Selamat pagi"
         )
     }
 

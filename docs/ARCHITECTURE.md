@@ -292,6 +292,11 @@ dan satu tes unit di `app/src/test/java/com/zenn889/putar/data/`.
   `./gradlew :app:verifyPaparazziDebug` (gagal kalau ada yang berubah).
   Tujuan utamanya menangkap regresi tampilan seperti "teks menyatu dengan
   latar" yang memaksa tiga rilis perbaikan (v2.19.1–v2.19.2).
+  **Wajib deterministik**: apa pun yang berubah sendiri (jam, tanggal, nomor
+  acak, animasi, isi penyimpanan) harus disuntik sebagai parameter. Pelajaran
+  dari CI pertama: kepala pustaka memuat sapaan yang bergantung jam, sehingga
+  gambar acuan selalu beda saat CI berjalan di jam lain — sejak itu sapaan
+  masuk lewat parameter `greeting`.
 - CI: `.github/workflows/ci.yml` menjalankan cek kurung, unit test,
   `assembleDebug`, dan `verifyPaparazziDebug` di setiap push ke `main` dan
   setiap pull request.

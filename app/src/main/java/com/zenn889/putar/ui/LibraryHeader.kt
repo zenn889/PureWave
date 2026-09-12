@@ -62,7 +62,13 @@ internal fun LibraryHeader(
     onTabSelect: (LibraryTab) -> Unit,
     showSort: Boolean,
     sortChoice: SortOption,
-    onSortChange: (SortOption) -> Unit
+    onSortChange: (SortOption) -> Unit,
+    /**
+     * Sapaan di kepala pustaka. Bisa disuntik supaya screenshot test
+     * deterministik — nilai aslinya bergantung jam (pagi/siang/sore/malam),
+     * sehingga gambar acuan akan selalu berbeda saat CI berjalan di jam lain.
+     */
+    greeting: String = greetingLine()
 ) {
     Column(Modifier.fillMaxWidth().padding(horizontal = Space.lg).padding(top = 10.dp, bottom = Space.xs)) {
         // --- identitas aplikasi + sapaan ---
@@ -85,7 +91,7 @@ internal fun LibraryHeader(
             Spacer(Modifier.width(Space.md))
             Column(Modifier.weight(1f)) {
                 Text(
-                    greetingLine(),
+                    greeting,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = Ink
