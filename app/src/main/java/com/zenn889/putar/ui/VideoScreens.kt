@@ -9,6 +9,7 @@ import android.util.Rational
 import android.util.Size
 import android.view.ViewGroup
 import android.view.WindowManager
+import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -419,6 +420,15 @@ fun VideoPlayerScreen(
         } else {
             countdown = 0
         }
+    }
+
+    // Tombol/gestur "kembali" milik Android: tutup layar pemutar video, jangan
+    // tutup aplikasinya. Sebelum ini tidak ada yang menangani, sehingga gestur
+    // kembali dari tepi layar saat menonton langsung keluar dari aplikasi
+    // (temuan dari HP user). Saat layar terkunci, kembali berarti membuka kunci
+    // — supaya sentuhan tepi yang tidak sengaja tidak menutup video.
+    BackHandler(enabled = !inPip) {
+        if (locked) locked = false else onBack()
     }
 
     // penanda geser kecerahan & ketuk-dua-kali hilang sendiri

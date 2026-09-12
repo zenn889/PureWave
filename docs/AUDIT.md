@@ -151,6 +151,9 @@ atas-bawah = kecerahan jendela (dikembalikan saat keluar); total 69 tes —
 v2.24.2.
 Pemutar video: lanjut otomatis dengan hitung mundur 5 detik (aturan di
 `shouldAutoNext`) + kunci layar; total 73 tes — v2.24.3.
+Tombol/gestur kembali tidak lagi menutup aplikasi: `BackHandler` di pemutar
+video (terkunci → buka kunci; PiP → diserahkan ke sistem) dan di tampilan
+detail album/artis/folder; aturan dicatat di ARCHITECTURE `4l` — v2.24.4.
 
 Catatan: hasil normalisasi volume tetap perlu dinilai telinga di HP, karena
 mesin build ini tidak punya perangkat audio. Yang bisa dibuktikan di sini

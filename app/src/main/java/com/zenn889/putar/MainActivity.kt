@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -463,6 +464,16 @@ fun PlayerApp() {
     var selArtist by remember { mutableStateOf<String?>(null) }
     var selFolder by remember { mutableStateOf<String?>(null) }
     val inDetail = selAlbum != null || selArtist != null || selFolder != null
+
+    // Tombol/gestur "kembali" milik Android harus menutup layar di dalam
+    // aplikasi lebih dulu, bukan menutup aplikasinya. Ini menangani tampilan
+    // detail album/artis/folder; layar pemutar video punya penangannya sendiri
+    // (dan didaftarkan belakangan, jadi menang saat keduanya terbuka).
+    BackHandler(enabled = inDetail) {
+        selAlbum = null
+        selArtist = null
+        selFolder = null
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()

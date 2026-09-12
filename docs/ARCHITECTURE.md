@@ -207,6 +207,8 @@ bar atas → tengah → kontrol bawah, supaya tombol selalu bisa ditekan.
 Subtitle: `LyricsLoader.subtitleFile()` lalu `MediaItem.SubtitleConfiguration`.
 Resume: `VideoPosStore`. PiP: tombol + `onUserLeaveHint()` di MainActivity,
 dan pemutar harus berada di window Activity (bukan Dialog) — sekarang sudah.
+Tombol/gestur kembali: ditangani `BackHandler` di dalam layar ini (lihat aturan
+`4l`) — mengembalikan `onBack()` alih-alih menutup aplikasi.
 
 PiP bersih (v2.16.0): `VideoPlayback.inPip` adalah state Compose tunggal
 yang menandai jendela sedang mengecil. Diisi dari dua arah — callback
@@ -389,6 +391,31 @@ Pemilik album (`Album.artist`) diambil dari tag `ALBUM_ARTIST` lewat
 artis lagu-lagunya; begitu lagu-lagunya punya pemilik berbeda-beda (kompilasi),
 labelnya menjadi "Berbagai artis". Sebelumnya album selalu dinamai dari **lagu
 pertamanya**, sehingga kompilasi tampak milik satu artis.
+
+### 4l. Tombol/gestur kembali (wajib untuk layar dalam aplikasi)
+
+Setiap layar di dalam aplikasi yang **bukan** `ModalBottomSheet`/`AlertDialog`
+wajib punya `BackHandler`. Tanpa itu, tombol/gestur kembali Android langsung
+menutup aplikasi, bukan menutup layar yang sedang terbuka.
+
+Kejadian nyata (dilaporkan pemilik proyek, diperbaiki v2.24.4): saat menonton
+video, gestur kembali dari tepi layar keluar dari aplikasi. Setelah diperiksa,
+seluruh berkas ternyata **tidak punya satu pun `BackHandler`** — jadi bukan
+hanya pemutar video, tampilan detail album/artis/folder juga kena.
+
+Dua penangan yang sekarang ada:
+- `MainActivity`: `BackHandler(enabled = inDetail)` membersihkan
+  `selAlbum`/`selArtist`/`selFolder`.
+- `VideoPlayerScreen`: `BackHandler(enabled = !inPip)` memanggil `onBack()` —
+  kecuali saat layar terkunci (V8), di mana kembali berarti **membuka kunci**
+  supaya sentuhan tepi yang tidak sengaja tidak menutup video. Saat PiP
+  penangan dimatikan, agar kembali menutup jendela PiP seperti perilaku bawaan
+  Android.
+
+Seluruh `*Sheet`/`*Dialog` lain aman karena `ModalBottomSheet`/`AlertDialog`
+menangani kembali sendiri. Pemenang saat dua penangan sama-sama aktif adalah
+yang **didaftarkan paling akhir** — karena `VideoPlayerScreen` dikomposisi
+setelah konten utama, penangannya menang saat keduanya terbuka.
 
 ---
 
