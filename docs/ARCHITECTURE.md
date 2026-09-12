@@ -87,6 +87,15 @@ UI (`ui/`):
 - `EqualizerSheet.kt` — UI EQ.
 - `VideoScreens.kt` — `VideoRow` (thumbnail) & `VideoPlayerScreen`
   (fullscreen + subtitle + PiP + resume; objek `VideoPlayback` untuk PiP).
+  Layar pemutar juga punya dua kontrol yang muncul dengan overlay:
+  **kecepatan putar** dan **mode tampilan** (`FIT_MODES`: Fit → Isi → Zoom).
+  Keduanya memakai `fmtSpeed`/`nextSpeed` dan menarik nilai kecepatan ke
+  `setPlaybackSpeed` yang sama dengan pemutar musik, supaya perilakunya tidak
+  bercabang dua. Kecepatan & mode bertahan selama layar pemutar terbuka
+  (termasuk saat pindah video) dan kembali ke awal saat layar dibuka ulang.
+  Catatan tata letak: penghitung antrian diletakkan **di dalam baris judul**
+  (bukan lagi di ujung kanan bar atas) karena dua kontrol baru butuh ruang —
+  tanpa itu judul video terpotong terlalu pendek di layar sempit.
 - `LyricsSheet.kt` — lirik bergulir.
 - `WelcomeScreen.kt` — onboarding sekali jalan.
 

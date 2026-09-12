@@ -63,8 +63,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.C
@@ -72,6 +77,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.zenn889.putar.data.LyricsLoader
 import com.zenn889.putar.data.VideoItem
@@ -80,6 +86,7 @@ import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.FaintInk
 import com.zenn889.putar.ui.theme.Ink
 import com.zenn889.putar.ui.theme.MutedInk
+import com.zenn889.putar.ui.theme.Radius
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -112,6 +119,24 @@ fun pipParams(aspect: Float): PictureInPictureParams {
     }
     return builder.build()
 }
+
+/* ---------- mode tampilan video ---------- */
+
+/**
+ * Tiga mode tampilan. [label] yang tampil di tombol, [resize] mode ExoPlayer,
+ * [desc] sebutan untuk pembaca layar sekaligus penjelasan singkat:
+ * "Fit" = seluruh gambar terlihat (sisa layar jadi bar hitam),
+ * "Isi" = memenuhi layar, tapi gambar bisa melar,
+ * "Zoom" = memenuhi layar dengan memotong tepi (tidak melar).
+ */
+internal data class FitMode(val label: String, val resize: Int, val desc: String)
+
+/** Urutan putaran tombol tampilan: Fit → Isi → Zoom → Fit. */
+internal val FIT_MODES = listOf(
+    FitMode("Fit", AspectRatioFrameLayout.RESIZE_MODE_FIT, "utuh, sisa layar hitam"),
+    FitMode("Isi", AspectRatioFrameLayout.RESIZE_MODE_FILL, "isi, gambar bisa melar"),
+    FitMode("Zoom", AspectRatioFrameLayout.RESIZE_MODE_ZOOM, "zoom, tepi terpotong")
+)
 
 /* ---------- cache thumbnail video ---------- */
 
@@ -252,6 +277,15 @@ fun VideoPlayerScreen(
     var seeking by remember { mutableStateOf(false) }
     var subsOn by remember { mutableStateOf(true) }
     var aspect by remember { mutableFloatStateOf(16f / 9f) }
+    // Kecepatan putar: bertahan selama layar pemutar ini terbuka (termasuk saat
+    // pindah ke video berikutnya), dan kembali ke 1x tiap layar dibuka ulang —
+    // sama seperti pemutar musik yang menyimpan kecepatan selama sesi berjalan.
+    var speed by remember { mutableFloatStateOf(1f) }
+    /**
+     * Mode tampilan video (0 Fit, 1 Isi, 2 Zoom). Ikut terbawa saat pindah
+     * video, dan kembali Fit saat layar pemutar dibuka ulang.
+     */
+    var mode by remember { mutableIntStateOf(0) }
     val inPip by VideoPlayback.inPip
 
     // subtitle di sebelah video (.srt / .vtt / .ttml)
@@ -276,6 +310,7 @@ fun VideoPlayerScreen(
         }
         val player = ExoPlayer.Builder(context).build().apply {
             setMediaItem(builder.build(), resumeMs)
+            setPlaybackSpeed(speed)   // kecepatan ikut terbawa saat pindah video
             prepare()
             playWhenReady = true
         }
@@ -293,6 +328,11 @@ fun VideoPlayerScreen(
             VideoPlayback.active = false
             VideoPlayback.playing = false
         }
+    }
+
+    // perubahan kecepatan langsung berlaku pada pemutar yang sedang berjalan
+    LaunchedEffect(speed) {
+        exo?.setPlaybackSpeed(speed)
     }
 
     LaunchedEffect(exo) {
@@ -375,7 +415,7 @@ fun VideoPlayerScreen(
             factory = { ctx ->
                 PlayerView(ctx).apply {
                     useController = false
-                    resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                     layoutParams = ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
@@ -386,6 +426,8 @@ fun VideoPlayerScreen(
             },
             update = { view ->
                 if (view.player !== exo) view.player = exo
+                // mode tampilan: Fit / Isi / Zoom (dipakai juga oleh jendela PiP)
+                view.resizeMode = FIT_MODES[mode.coerceIn(0, FIT_MODES.size - 1)].resize
                 view.subtitleView?.visibility = if (subsOn) android.view.View.VISIBLE
                 else android.view.View.GONE
             },
@@ -426,7 +468,15 @@ fun VideoPlayerScreen(
                         )
                     }
                     Text(
-                        item.title,
+                        // penghitung antrian ikut di baris judul: dua tombol baru
+                        // (kecepatan & tampilan) butuh ruang, dan ini menjaga judul
+                        // tetap lega
+                        buildAnnotatedString {
+                            withStyle(SpanStyle(color = Color(0xB3FFFFFF))) {
+                                append("${idx + 1}/${queue.size}  ")
+                            }
+                            append(item.title)
+                        },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         color = Color.White,
@@ -434,6 +484,44 @@ fun VideoPlayerScreen(
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f)
                     )
+                    // kecepatan putar — ditaruh sebelum tombol yang sudah ada supaya
+                    // posisi subtitle/PiP/penghitung tidak bergeser
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(Radius.xs))
+                            .background(Color(0x66000000))
+                            .clickable { speed = nextSpeed(speed) }
+                            .padding(horizontal = 9.dp, vertical = 5.dp)
+                            .semantics {
+                                contentDescription = "Kecepatan putar ${fmtSpeed(speed)}"
+                            }
+                    ) {
+                        Text(
+                            fmtSpeed(speed),
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    // mode tampilan — sebelah tombol subtitle supaya kontrol yang
+                    // berhubungan dengan gambar berkumpul
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(Radius.xs))
+                            .background(Color(0x66000000))
+                            .clickable { mode = (mode + 1) % FIT_MODES.size }
+                            .padding(horizontal = 9.dp, vertical = 5.dp)
+                            .semantics {
+                                contentDescription = "Tampilan video: ${FIT_MODES[mode].desc}"
+                            }
+                    ) {
+                        Text(
+                            FIT_MODES[mode].label,
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                     IconButton(onClick = {
                         subsOn = !subsOn
                     }) {
@@ -450,12 +538,6 @@ fun VideoPlayerScreen(
                             tint = Color.White
                         )
                     }
-                    Text(
-                        "${idx + 1}/${queue.size}",
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.padding(end = 12.dp)
-                    )
                 }
             }
 
