@@ -338,13 +338,20 @@ folder dipisah dan dikunci per folder, karena satu folder bisa memuat banyak
 album. Semua cache dibuang saat pemindaian berikutnya supaya `folder.jpg` yang
 baru ditambahkan ikut terbaca.
 
-**Catatan tentang loading awal:** pemindaian pustaka berjalan *setiap* aplikasi
-dibuka (`MainActivity` → `LaunchedEffect(granted)` → `MusicRepository.loadLibrary()`
-+ `loadVideos()`), dan hasilnya **tidak disimpan di disk** — jadi biaya
-pemindaian dibayar ulang tiap kali. Inilah yang tampil sebagai lingkaran loading.
-Kalau nanti ingin membuka aplikasi terasa instan, langkahnya adalah menyimpan
-pustaka terakhir ke disk, menampilkannya lebih dulu, lalu memindai ulang di
-belakang layar.
+**Loading awal sudah dihilangkan (v2.24.0).** Pemindaian MediaStore
+(`MainActivity` → `LaunchedEffect(granted)` → `loadLibrary()` + `loadVideos()`)
+tetap berjalan setiap aplikasi dibuka, tetapi hasilnya kini disimpan di disk
+oleh `data/LibraryCache.kt` dan dibaca lebih dulu, sehingga daftar lagu muncul
+seketika dan pemindaian hanya menyegarkan di belakang layar. Lingkaran loading
+tinggal muncul pada pembukaan pertama setelah pemasangan (belum ada simpanan).
+
+Aturan simpanan: satu berkas teks di `filesDir` (privat aplikasi), satu baris
+per lagu/video dengan bidang di-escape dan dipisah karakter Unit Separator;
+ada penanda versi, jadi perubahan skema cukup menaikkan versi tersebut dan
+simpanan lama diabaikan (bukan dibaca salah). Ditulis lewat berkas sementara
+lalu diganti, dan **hasil pemindaian yang kosong tidak menimpa simpanan yang
+berisi** (`shouldOverwrite`) — pemindaian yang gagal sesaat juga mengembalikan
+daftar kosong, dan itu tidak boleh menghapus pustaka yang tersimpan.
 
 Pemilik album (`Album.artist`) diambil dari tag `ALBUM_ARTIST` lewat
 `albumArtistOf()` di `ui/LibraryScreens.kt`. Kalau tag itu tidak ada, dipakai

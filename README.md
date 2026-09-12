@@ -10,6 +10,11 @@ Music player Android **native** (Kotlin + Jetpack Compose + Media3/ExoPlayer).
 Memutar semua musik dari penyimpanan internal HP. **Tanpa internet, tanpa
 akun, tanpa iklan.**
 
+> **v2.24.0**: aplikasi terbuka **tanpa lingkaran loading** — pustaka terakhir
+> disimpan di HP dan langsung ditampilkan, lalu disegarkan di belakang layar.
+> Lingkaran loading hanya muncul pada pembukaan pertama setelah pemasangan
+> (atau setelah data aplikasi dibersihkan).
+>
 > **v2.23.0**: album kompilasi tidak lagi dinamai dari lagu pertamanya — kini
 > memakai tag `ALBUM_ARTIST`, dan diberi label **"Berbagai artis"** kalau
 > pemiliknya berbeda-beda. Sampul album juga dicari ke folder lagu
@@ -131,7 +136,7 @@ akun, tanpa iklan.**
 
 ## Unduh
 
-https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.23.1.apk`.
+https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.24.0.apk`.
 
 > **Pindah dari v2.7.0–v2.15.0 (wajib baca):** rilis v2.16.0 memakai kunci
 > penandatangan **baru**. Kunci lama (v2.7.0–v2.15.0) tidak bisa dipakai lagi

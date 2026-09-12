@@ -62,6 +62,7 @@ import com.zenn889.putar.data.Album
 import com.zenn889.putar.data.BackupStore
 import com.zenn889.putar.data.FavStore
 import com.zenn889.putar.data.LyricsLoader
+import com.zenn889.putar.data.LibraryCache
 import com.zenn889.putar.data.MusicRepository
 import com.zenn889.putar.data.Playlist
 import com.zenn889.putar.data.PlaylistStore
@@ -366,6 +367,13 @@ fun PlayerApp() {
     var tracks by remember { mutableStateOf<List<Track>>(emptyList()) }
     var videos by remember { mutableStateOf<List<VideoItem>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
+    /**
+     * Sebelum simpanan pustaka selesai dibaca, layar sengaja dibiarkan kosong
+     * sekejap — supaya tidak ada lingkaran loading (kalau ada simpanan) dan
+     * tidak ada kedipan "tidak ada musik" (yang muncul kalau daftar masih
+     * kosong padahal pemindaian belum jalan).
+     */
+    var restoring by remember { mutableStateOf(true) }
     var query by remember { mutableStateOf("") }
     var tab by remember { mutableStateOf(LibraryTab.LAGU) }
 
@@ -465,12 +473,23 @@ fun PlayerApp() {
 
     LaunchedEffect(granted) {
         if (granted) {
-            loading = true
+            // Pustaka terakhir ditampilkan lebih dulu supaya aplikasi terbuka
+            // tanpa lingkaran loading; pemindaian tetap dijalankan di belakang
+            // untuk menyegarkan (dan hasilnya disimpan untuk pembukaan berikutnya).
+            val cached = LibraryCache.load(context)
+            if (cached != null) {
+                tracks = cached.first
+                videos = cached.second
+            } else {
+                loading = true          // pembukaan pertama: belum ada simpanan
+            }
+            restoring = false
             val lib = repo.loadLibrary()
             val vids = repo.loadVideos()
             tracks = lib
             videos = vids
             loading = false
+            LibraryCache.save(context, lib, vids)
         }
     }
 
@@ -889,6 +908,7 @@ fun PlayerApp() {
         Box(Modifier.padding(padding).fillMaxSize()) {
             when {
                 !granted -> PermissionScreen(onRequest = ::requestPermissions)
+                restoring -> Box(Modifier.fillMaxSize())
                 loading -> CircularProgressIndicator(
                     color = Coral,
                     modifier = Modifier.align(Alignment.Center)

@@ -140,6 +140,9 @@ Dukungan ReplayGain OGG/Opus & M4A + `moov` di akhir file (total 32 tes) —
 v2.22.0.
 Album kompilasi lewat tag `ALBUM_ARTIST` + label "Berbagai artis" + sampul dari
 folder lagu (`data/ArtResolver.kt`; total 47 tes) — v2.23.0.
+Cache sampul per album (memperbaiki loading awal yang lambat) — v2.23.1.
+Simpanan pustaka di disk (`data/LibraryCache.kt`) sehingga aplikasi terbuka
+tanpa lingkaran loading; total 59 tes — v2.24.0.
 
 Catatan: hasil normalisasi volume tetap perlu dinilai telinga di HP, karena
 mesin build ini tidak punya perangkat audio. Yang bisa dibuktikan di sini
