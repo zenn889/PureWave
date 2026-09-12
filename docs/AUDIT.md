@@ -149,6 +149,8 @@ pindah ke baris judul; total 65 tes — v2.24.1.
 Sentuhan pemutar video: ketuk dua kali di sisi kiri/kanan = ±10 detik, geser
 atas-bawah = kecerahan jendela (dikembalikan saat keluar); total 69 tes —
 v2.24.2.
+Pemutar video: lanjut otomatis dengan hitung mundur 5 detik (aturan di
+`shouldAutoNext`) + kunci layar; total 73 tes — v2.24.3.
 
 Catatan: hasil normalisasi volume tetap perlu dinilai telinga di HP, karena
 mesin build ini tidak punya perangkat audio. Yang bisa dibuktikan di sini

@@ -36,6 +36,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PictureInPictureAlt
@@ -50,6 +51,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -162,6 +164,14 @@ private fun systemBrightness(context: Context): Float = runCatching {
  */
 internal fun brightnessAfterDrag(base: Float, dyPx: Float): Float =
     (base - dyPx / 700f).coerceIn(0.02f, 1f)
+
+/**
+ * V7: apakah hitung mundur lanjut-otomatis boleh berjalan? Hanya kalau video
+ * benar-benar habis, masih ada video berikutnya, dan user belum menekan
+ * "Batal" untuk video ini.
+ */
+internal fun shouldAutoNext(ended: Boolean, hasNext: Boolean, cancelled: Boolean): Boolean =
+    ended && hasNext && !cancelled
 
 /**
  * Ubah kecerahan jendela layar pemutar. Hanya berlaku untuk jendela Activity
@@ -336,6 +346,12 @@ fun VideoPlayerScreen(
     var brightHint by remember { mutableStateOf(false) }
     /** -1 = kilatan "mundur 10 detik", +1 = "maju 10 detik", 0 = tidak tampil. */
     var seekFlash by remember { mutableIntStateOf(0) }
+    /** Sisa detik hitung mundur sebelum lanjut ke video berikutnya; 0 = tidak jalan. */
+    var countdown by remember { mutableIntStateOf(0) }
+    /** User menekan "Batal" pada hitung mundur — berlaku untuk video ini saja. */
+    var autoNextOff by remember { mutableStateOf(false) }
+    /** Kunci layar: semua sentuhan ditahan sampai dibuka. */
+    var locked by remember { mutableStateOf(false) }
     val inPip by VideoPlayback.inPip
 
     // subtitle di sebelah video (.srt / .vtt / .ttml)
@@ -385,6 +401,23 @@ fun VideoPlayerScreen(
     DisposableEffect(Unit) {
         onDispose {
             applyWindowBrightness(activity, WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE)
+        }
+    }
+
+    // V7: video habis & masih ada berikutnya → hitung mundur 5 detik lalu lanjut
+    // sendiri. Jeda 300 ms di awal supaya perpindahan video (yang sesaat masih
+    // terbaca "habis") tidak memicu hitung mundur palsu.
+    LaunchedEffect(ended, idx, autoNextOff) {
+        if (shouldAutoNext(ended, idx < queue.size - 1, autoNextOff)) {
+            delay(300)
+            countdown = 5
+            while (countdown > 0) {
+                delay(1_000)
+                countdown -= 1
+            }
+            if (idx < queue.size - 1) idx += 1
+        } else {
+            countdown = 0
         }
     }
 
@@ -442,6 +475,8 @@ fun VideoPlayerScreen(
         dragMs = -1L
         controls = true
         seeking = false
+        countdown = 0
+        autoNextOff = false      // "Batal" berlaku untuk satu video saja
     }
 
     // masuk PiP → semua kontrol disembunyikan; keluar PiP → muncul lagi
@@ -572,6 +607,41 @@ fun VideoPlayerScreen(
                                 )
                             }
                     )
+                }
+            }
+        }
+
+        // V7: kartu hitung mundur lanjut otomatis (di atas baris kontrol bawah)
+        if (countdown > 0 && !inPip) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 120.dp)
+                    .background(Color(0xE6000000), RoundedCornerShape(Radius.md))
+                    .padding(horizontal = 18.dp, vertical = 12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    "Video berikutnya dalam $countdown…",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(
+                        onClick = { if (idx < queue.size - 1) idx += 1 }
+                    ) {
+                        Text(
+                            "Tonton sekarang",
+                            color = Coral,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    TextButton(onClick = { autoNextOff = true }) {
+                        Text("Batal", color = Color(0xCCFFFFFF))
+                    }
                 }
             }
         }
@@ -811,6 +881,20 @@ fun VideoPlayerScreen(
                         style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.width(42.dp)
                     )
+                    // V8: kunci layar — ditaruh di deretan penggeser supaya tidak
+                    // menambah sesak bar atas (judul video tetap lega)
+                    IconButton(
+                        onClick = {
+                            locked = true
+                            controls = false
+                        }
+                    ) {
+                        Icon(
+                            Icons.Filled.Lock,
+                            contentDescription = "Kunci layar",
+                            tint = Color.White
+                        )
+                    }
                 }
                 Row(
                     modifier = Modifier
@@ -866,6 +950,47 @@ fun VideoPlayerScreen(
                             tint = Color.White
                         )
                     }
+                }
+            }
+        }
+
+        // 6) kunci layar (V8) — lapisan paling atas supaya semua sentuhan
+        // tertahan; satu-satunya yang bisa disentuh adalah tombol buka kunci
+        if (locked && !inPip) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                awaitPointerEvent().changes.forEach { it.consume() }
+                            }
+                        }
+                    }
+            ) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .statusBarsPadding()
+                        .padding(start = 12.dp, top = 12.dp)
+                        .clip(RoundedCornerShape(Radius.pill))
+                        .background(Color(0xCC000000))
+                        .clickable { locked = false }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Filled.Lock,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "Terkunci — ketuk untuk membuka",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
             }
         }

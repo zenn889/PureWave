@@ -106,6 +106,18 @@ UI (`ui/`):
   (`DisposableEffect`), kalau tidak sisa aplikasi ikut meredup. Nilai awalnya
   dibaca dari `Settings.System.SCREEN_BRIGHTNESS` (baca saja, tanpa izin);
   perhitungannya ada di `brightnessAfterDrag` supaya arahnya bisa diuji.
+  Lanjut otomatis (V7): saat video habis dan masih ada berikutnya, hitung mundur
+  5 detik lalu pindah sendiri. Aturannya dipisah ke `shouldAutoNext` (habis &&
+  ada berikutnya && belum dibatalkan) supaya bisa diuji tanpa perangkat;
+  "Batal" berlaku untuk satu video saja dan direset di `LaunchedEffect(idx)`.
+  Jeda 300 ms sebelum hitung mundur dimulai, supaya sisa status "habis" dari
+  video yang baru diganti tidak memicu hitung mundur palsu.
+  Kunci layar (V8): lapisan paling atas (`fillMaxSize` + penelan semua
+  sentuhan) dengan satu-satunya elemen yang bisa ditekan adalah tombol buka di
+  kiri atas. Tombol kuncinya diletakkan di **deretan penggeser**, bukan bar
+  atas, supaya lebar judul video tidak makin terpotong. Saat terkunci, kartu
+  hitung mundur tertutup lapisan ini — videonya tetap lanjut sendiri, tetapi
+  tombol "Tonton sekarang"/"Batal" baru bisa ditekan setelah dibuka.
 - `LyricsSheet.kt` — lirik bergulir.
 - `WelcomeScreen.kt` — onboarding sekali jalan.
 
