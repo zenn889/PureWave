@@ -1,6 +1,7 @@
 # Kunci rilis & cadangannya — apa saja yang wajib disimpan
 
-Dokumen ini untuk siapa pun yang akan merilis PureWave . Isinya **tidak ada rahasia**: hanya daftar hal yang harus
+Dokumen ini untuk siapa pun yang akan merilis PureWave (termasuk AI agent di
+sesi berikutnya) . Isinya **tidak ada rahasia**: hanya daftar hal yang harus
 dicadangkan dan cara memeriksanya. File `.jks` dan password-nya disimpan di
 luar repo.
 
