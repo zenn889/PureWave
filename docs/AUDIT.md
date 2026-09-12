@@ -138,6 +138,8 @@ bawaan tema (`LocalContentColor`) — v2.19.2; notis lisensi MIT di dalam app +
 perbaikan URL repo — v2.21.0.
 Dukungan ReplayGain OGG/Opus & M4A + `moov` di akhir file (total 32 tes) —
 v2.22.0.
+Album kompilasi lewat tag `ALBUM_ARTIST` + label "Berbagai artis" + sampul dari
+folder lagu (`data/ArtResolver.kt`; total 47 tes) — v2.23.0.
 
 Catatan: hasil normalisasi volume tetap perlu dinilai telinga di HP, karena
 mesin build ini tidak punya perangkat audio. Yang bisa dibuktikan di sini

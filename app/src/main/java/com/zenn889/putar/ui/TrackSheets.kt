@@ -57,9 +57,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.zenn889.putar.data.MusicRepository
 import com.zenn889.putar.data.Playlist
 import com.zenn889.putar.data.Track
+import com.zenn889.putar.data.toArtUri
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.FaintInk
 import com.zenn889.putar.ui.theme.Ink
@@ -374,7 +374,7 @@ fun PlaylistBrowserSheet(
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
-                            AlbumArt(MusicRepository.albumArtUri(track.albumId), size = 40.dp)
+                            AlbumArt(track.artUri.toArtUri(), size = 40.dp)
                             Spacer(Modifier.width(10.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(track.title, maxLines = 1,

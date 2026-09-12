@@ -34,8 +34,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.zenn889.putar.data.MusicRepository
 import com.zenn889.putar.data.Track
+import com.zenn889.putar.data.toArtUri
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.FaintInk
 import com.zenn889.putar.ui.theme.Ink
@@ -107,7 +107,7 @@ fun TrackStrip(
                 ) {
                     Box {
                         AlbumArt(
-                            uri = MusicRepository.albumArtUri(track.albumId),
+                            uri = track.artUri.toArtUri(),
                             size = 148.dp,
                             shape = RoundedCornerShape(18.dp),
                             modifier = Modifier.shadow(14.dp, RoundedCornerShape(18.dp), clip = false)

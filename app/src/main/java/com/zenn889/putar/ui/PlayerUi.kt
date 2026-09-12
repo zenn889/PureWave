@@ -91,8 +91,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
-import com.zenn889.putar.data.MusicRepository
 import com.zenn889.putar.data.Track
+import com.zenn889.putar.data.toArtUri
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.CoralBright
 import com.zenn889.putar.ui.theme.FaintInk
@@ -228,7 +228,7 @@ fun TrackRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         AlbumArt(
-            MusicRepository.albumArtUri(track.albumId),
+            track.artUri.toArtUri(),
             size = 52.dp,
             shape = RoundedCornerShape(Radius.sm)
         )

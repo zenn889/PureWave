@@ -306,6 +306,36 @@ stabil belum kenal compileSdk 36 (cashapp/paparazzi#1877), lalu dipertahankan
 setelah Paparazzi dicabut karena sudah terbukti hijau (debug, tes, dan build
 rilis R8).
 
+### 4k. Sampul album & pemilik album
+
+Sampul diselesaikan **sekali saat pemindaian pustaka** (`data/ArtResolver.kt`),
+lalu hasilnya disimpan di model (`Track.artUri`, `Album.artUri`). Seluruh UI —
+daftar lagu, kisi album, baris playlist, mini player, layar pemutar, notifikasi
+— tinggal memakai nilai itu, jadi tidak ada logika gambar yang tersebar di
+banyak layar.
+
+Urutan pencarian sampul:
+
+1. Sampul MediaStore (`content://media/external/audio/albumart/<id>`), **tetapi
+   hanya kalau gambarnya benar-benar ada** (dicek dengan membuka stream-nya).
+   Ini yang membuat kasus "album terindeks tapi tanpa sampul" ikut tertolong.
+2. Gambar di folder lagu: `folder.jpg`, `cover.jpg`, `albumart.jpg`,
+   `album.jpg`, `front.jpg`, `artwork.jpg` (juga .jpeg/.png/.webp; huruf
+   besar-kecil diabaikan). Diambil dari `filePath` kalau ada, kalau tidak dari
+   `RELATIVE_PATH`.
+
+Sengaja **tidak** mengambil sembarang gambar di folder: folder musik sering
+berisi foto yang tidak berhubungan dengan album. Hasil dicache per album dan
+per folder (pemindaian memanggil ini sekali per lagu — pemeriksaan MediaStore
+relatif mahal), dan cache dibuang saat pemindaian berikutnya supaya
+`folder.jpg` yang baru ditambahkan ikut terbaca.
+
+Pemilik album (`Album.artist`) diambil dari tag `ALBUM_ARTIST` lewat
+`albumArtistOf()` di `ui/LibraryScreens.kt`. Kalau tag itu tidak ada, dipakai
+artis lagu-lagunya; begitu lagu-lagunya punya pemilik berbeda-beda (kompilasi),
+labelnya menjadi "Berbagai artis". Sebelumnya album selalu dinamai dari **lagu
+pertamanya**, sehingga kompilasi tampak milik satu artis.
+
 ---
 
 ## 5. Rilis APK (langkah lengkap)

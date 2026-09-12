@@ -10,6 +10,13 @@ Music player Android **native** (Kotlin + Jetpack Compose + Media3/ExoPlayer).
 Memutar semua musik dari penyimpanan internal HP. **Tanpa internet, tanpa
 akun, tanpa iklan.**
 
+> **v2.23.0**: album kompilasi tidak lagi dinamai dari lagu pertamanya — kini
+> memakai tag `ALBUM_ARTIST`, dan diberi label **"Berbagai artis"** kalau
+> pemiliknya berbeda-beda. Sampul album juga dicari ke folder lagu
+> (`folder.jpg`, `cover.jpg`, dan sejenisnya) kalau MediaStore tidak punya
+> gambarnya, jadi file hasil salin dari komputer tidak lagi tampil ikon kosong.
+> 15 tes baru (total 47).
+>
 > **v2.22.0**: normalisasi volume kini juga membaca tag ReplayGain di
 > **OGG/Vorbis, Opus, dan M4A/MP4** (sebelumnya hanya MP3 & FLAC), termasuk
 > file M4A yang menaruh datanya di akhir file. 7 tes baru (total 32).
@@ -68,7 +75,9 @@ akun, tanpa iklan.**
 
 - **Pustaka terstruktur**: tab Lagu / Album / Artis / Folder — browse per
   album (artwork asli), artis, atau folder penyimpanan; ketuk untuk
-  memutar seluruh isinya.
+  memutar seluruh isinya. Album kompilasi dikenali lewat tag `ALBUM_ARTIST`
+  dan diberi label "Berbagai artis", dan kalau MediaStore tidak punya sampul
+  albumnya, gambar di folder lagu (`folder.jpg` / `cover.jpg`) dipakai.
 - **Video**: tab Video memindai video di HP — ketuk untuk memutar
   fullscreen di dalam app (play/pause/seek), tetap offline.
 - **Auto-resume**: lagu terakhir + posisinya + antrian diingat; saat app
@@ -122,7 +131,7 @@ akun, tanpa iklan.**
 
 ## Unduh
 
-https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.22.0.apk`.
+https://github.com/zenn889/PureWave/releases — ambil `purewave-v2.23.0.apk`.
 
 > **Pindah dari v2.7.0–v2.15.0 (wajib baca):** rilis v2.16.0 memakai kunci
 > penandatangan **baru**. Kunci lama (v2.7.0–v2.15.0) tidak bisa dipakai lagi

@@ -13,6 +13,9 @@ import java.io.File
 class MusicRepository(private val context: Context) {
 
     suspend fun loadLibrary(): List<Track> = withContext(Dispatchers.IO) {
+        // Cache sampul dibuang dulu supaya gambar folder yang baru ditambahkan
+        // (atau dihapus) ikut terbaca pada pemindaian berikutnya.
+        ArtResolver.clear()
         val result = mutableListOf<Track>()
         val collection = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         val useRelative = Build.VERSION.SDK_INT >= 29
@@ -23,6 +26,7 @@ class MusicRepository(private val context: Context) {
             add(MediaStore.Audio.Media.DURATION)
             add(MediaStore.Audio.Media.ALBUM_ID)
             add(MediaStore.Audio.Media.ALBUM)
+            add(MediaStore.Audio.Media.ALBUM_ARTIST)
             add(MediaStore.Audio.Media.DATE_ADDED)
             @Suppress("DEPRECATION")
             add(MediaStore.MediaColumns.DATA)
@@ -38,6 +42,7 @@ class MusicRepository(private val context: Context) {
                 val iDur = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
                 val iAlbum = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
                 val iAlbumName = c.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+                val iAlbumArtist = c.getColumnIndex(MediaStore.Audio.Media.ALBUM_ARTIST)
                 val iDate = c.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
                 val iData = c.getColumnIndex(MediaStore.MediaColumns.DATA)
                 val iFolder = c.getColumnIndexOrThrow(
@@ -59,6 +64,11 @@ class MusicRepository(private val context: Context) {
                                 .takeIf { it.isNotEmpty() }
                         }
                     }
+                    val filePath = if (iData >= 0) c.getString(iData)?.takeIf { it.isNotEmpty() } else null
+                    val albumArtist = if (iAlbumArtist >= 0) {
+                        c.getString(iAlbumArtist)?.trim()
+                            ?.takeIf { it.isNotEmpty() && !it.equals("<unknown>", true) }
+                    } else null
                     result.add(
                         Track(
                             mediaId = id,
@@ -72,7 +82,11 @@ class MusicRepository(private val context: Context) {
                             folder = folder,
                             albumTitle = c.getString(iAlbumName),
                             dateAddedMs = if (c.isNull(iDate)) 0L else c.getLong(iDate) * 1000L,
-                            filePath = if (iData >= 0) c.getString(iData)?.takeIf { it.isNotEmpty() } else null
+                            filePath = filePath,
+                            albumArtist = albumArtist,
+                            // Sampul diselesaikan sekali di sini (MediaStore → folder)
+                            // supaya seluruh UI tinggal memakai hasilnya.
+                            artUri = ArtResolver.resolve(context, albumId, folder, filePath)
                         )
                     )
                 }

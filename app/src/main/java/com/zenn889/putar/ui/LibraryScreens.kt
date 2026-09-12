@@ -36,8 +36,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.zenn889.putar.data.Album
 import com.zenn889.putar.data.FolderItem
-import com.zenn889.putar.data.MusicRepository
 import com.zenn889.putar.data.Track
+import com.zenn889.putar.data.toArtUri
 import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.Elev
 import com.zenn889.putar.ui.theme.Ink
@@ -90,7 +90,7 @@ fun AlbumCard(album: Album, onClick: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         AlbumArt(
-            uri = MusicRepository.albumArtUri(album.albumId),
+            uri = album.artUri.toArtUri(),
             size = 148.dp,
             shape = RoundedCornerShape(Radius.md),
             modifier = Modifier.shadow(Elev.card, RoundedCornerShape(Radius.md), clip = false)
@@ -271,6 +271,9 @@ private fun initials(name: String): String {
     }
 }
 
+/** Label untuk album yang pemiliknya berbeda-beda (kompilasi). */
+internal const val VARIOUS_ARTISTS = "Berbagai artis"
+
 internal fun buildAlbumsFrom(tracks: List<Track>): List<Album> =
     tracks.filter { it.albumId != null }
         .groupBy { it.albumId!! }
@@ -278,8 +281,29 @@ internal fun buildAlbumsFrom(tracks: List<Track>): List<Album> =
             Album(
                 albumId = list.first().albumId!!,
                 title = list.first().albumTitle ?: "Tanpa album",
-                artist = list.first().artist,
-                songCount = list.size
+                artist = albumArtistOf(list),
+                songCount = list.size,
+                folder = list.firstNotNullOfOrNull { it.folder },
+                artUri = list.firstNotNullOfOrNull { it.artUri }
             )
         }
         .sortedBy { it.title.lowercase() }
+
+/**
+ * Pemilik album. Diutamakan tag `ALBUM_ARTIST` (pemilik album yang sebenarnya);
+ * kalau tidak ada, diambil dari artis lagu-lagunya. Begitu lagu-lagunya punya
+ * pemilik berbeda-beda (kompilasi), dipakai label netral "Berbagai artis" —
+ * sebelumnya album seperti itu dinamai dari lagu pertamanya saja, sehingga
+ * kompilasi tampak seperti album milik satu artis.
+ */
+internal fun albumArtistOf(list: List<Track>): String {
+    val fromTag = list.mapNotNull { it.albumArtist?.takeIf { a -> a.isNotBlank() } }.distinct()
+    if (fromTag.size == 1) return fromTag.first()
+    if (fromTag.size > 1) return VARIOUS_ARTISTS
+    val performers = list.map { it.artist }.filter { it.isNotBlank() }.distinct()
+    return when {
+        performers.size == 1 -> performers.first()
+        performers.isEmpty() -> ""
+        else -> VARIOUS_ARTISTS
+    }
+}

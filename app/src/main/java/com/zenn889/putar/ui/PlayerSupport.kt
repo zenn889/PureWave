@@ -5,8 +5,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
-import com.zenn889.putar.data.MusicRepository
 import com.zenn889.putar.data.Track
+import com.zenn889.putar.data.toArtUri
 import kotlin.math.abs
 
 internal fun Track.toMediaItem(): MediaItem =
@@ -17,7 +17,7 @@ internal fun Track.toMediaItem(): MediaItem =
             MediaMetadata.Builder()
                 .setTitle(title)
                 .setArtist(displayArtist)
-                .setArtworkUri(MusicRepository.albumArtUri(albumId))
+                .setArtworkUri(artUri.toArtUri())
                 .build()
         )
         .build()

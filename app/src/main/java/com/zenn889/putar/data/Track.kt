@@ -20,7 +20,15 @@ data class Track(
     /** epoch millis saat file ditambahkan (utk sortir terbaru) */
     val dateAddedMs: Long = 0L,
     /** path file fisik (utk mencari .lrc di sebelah lagu); null bila tak tersedia */
-    val filePath: String? = null
+    val filePath: String? = null,
+    /**
+     * Pemilik album (tag ALBUM_ARTIST), beda dari [artist] yang bisa berisi
+     * "feat." pada lagu kompilasi. Dipakai untuk menamai album, bukan lagu.
+     */
+    val albumArtist: String? = null,
+    /** Sampul yang sudah dicari saat pemindaian (MediaStore → folder); String
+     *  supaya model tetap murni. Null = benar-benar tidak ada sampul. */
+    val artUri: String? = null
 ) {
     val displayArtist: String
         get() = artist.ifBlank { "Artis tak dikenal" }
@@ -31,7 +39,11 @@ data class Album(
     val albumId: Long,
     val title: String,
     val artist: String,
-    val songCount: Int
+    val songCount: Int,
+    /** folder lagu-lagunya, untuk mencari sampul cadangan */
+    val folder: String? = null,
+    /** sampul album (sudah diselesaikan saat pemindaian) */
+    val artUri: String? = null
 ) {
     val displayArtist: String
         get() = artist.ifBlank { "Artis tak dikenal" }
