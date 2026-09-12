@@ -6,6 +6,19 @@ import android.os.Environment
 import java.io.File
 
 /**
+ * Kunci cache sampul: **satu album diperiksa sekali**, bukan sekali per lagu.
+ *
+ * Ini penting untuk kecepatan membuka aplikasi: pemindaian pustaka memanggil
+ * [resolve] satu kali untuk setiap lagu, sedangkan pemeriksaan MediaStore
+ * (membuka gambar lewat ContentResolver) relatif mahal. Versi pertama fungsi
+ * ini ikut memasukkan `filePath` ke dalam kunci, sehingga kuncinya selalu baru
+ * untuk tiap lagu dan cache tidak pernah kena — akibatnya satu pustaka bisa
+ * memicu ribuan pemeriksaan saat aplikasi dibuka.
+ */
+internal fun artCacheKey(albumId: Long?, dirPath: String?): String =
+    if (albumId != null) "a$albumId" else "f:${dirPath.orEmpty()}"
+
+/**
  * Menentukan sampul untuk sebuah album/lagu, sekali saat pemindaian pustaka.
  *
  * Urutannya: sampul dari MediaStore (`content://media/external/audio/albumart/<id>`)
@@ -19,8 +32,8 @@ import java.io.File
  * sudah membaca berkas di folder lagu untuk mencari lirik `.lrc` dan subtitle,
  * jadi mencari gambar di folder yang sama sejalan dengan itu.
  *
- * Hasil dicache per album/folder karena pemindaian memanggil ini sekali per
- * lagu — pemeriksaannya sendiri (buka gambar lewat MediaStore) relatif mahal.
+ * Hasil dicache per album dan per folder, supaya pemindaian pustaka tetap
+ * seringkas mungkin (lihat [artCacheKey]).
  */
 object ArtResolver {
 
@@ -29,26 +42,34 @@ object ArtResolver {
 
     private val IMAGE_EXT = listOf(".jpg", ".jpeg", ".png", ".webp")
 
+    /** albumId (atau folder, kalau albumnya tak diketahui) → sampul. */
     private val cache = HashMap<String, String?>()
 
+    /** folder → gambar di dalamnya (murni nama berkas, tanpa MediaStore). */
+    private val folderCache = HashMap<String, String?>()
+
     /** Buang cache — dipanggil saat pustaka dipindai ulang. */
-    fun clear() = cache.clear()
+    fun clear() {
+        cache.clear()
+        folderCache.clear()
+    }
 
     /**
      * @return String URI sampul, atau null kalau tidak ada di mana pun.
      */
     fun resolve(context: Context, albumId: Long?, folder: String?, filePath: String?): String? {
-        val key = "a${albumId ?: -1}|${folder.orEmpty()}|${filePath.orEmpty()}"
+        val dir = dirOf(folder, filePath)
+        val key = artCacheKey(albumId, dir?.absolutePath)
         if (cache.containsKey(key)) return cache[key]
-        val value = find(context, albumId, folder, filePath)
+        val value = find(context, albumId, dir)
         cache[key] = value
         return value
     }
 
-    private fun find(context: Context, albumId: Long?, folder: String?, filePath: String?): String? {
+    private fun find(context: Context, albumId: Long?, dir: File?): String? {
         val fromStore = MusicRepository.albumArtUri(albumId)
         if (fromStore != null && hasImage(context, fromStore)) return fromStore.toString()
-        return findImage(dirOf(folder, filePath))?.let { Uri.fromFile(it).toString() }
+        return folderArt(dir)?.let { Uri.fromFile(it).toString() }
     }
 
     /** Apakah MediaStore sungguh menyediakan gambar untuk URI itu? */
@@ -63,6 +84,16 @@ object ArtResolver {
         }
         val rel = folder?.trim('/')?.takeIf { it.isNotEmpty() } ?: return null
         return File(Environment.getExternalStorageDirectory(), rel)
+    }
+
+    /** Gambar di folder, dicache per folder (banyak album bisa satu folder). */
+    private fun folderArt(dir: File?): File? {
+        if (dir == null) return null
+        val path = dir.absolutePath
+        if (folderCache.containsKey(path)) return folderCache[path]?.let { File(it) }
+        val found = findImage(dir)
+        folderCache[path] = found?.absolutePath
+        return found
     }
 
     /**

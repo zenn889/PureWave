@@ -325,10 +325,26 @@ Urutan pencarian sampul:
    `RELATIVE_PATH`.
 
 Sengaja **tidak** mengambil sembarang gambar di folder: folder musik sering
-berisi foto yang tidak berhubungan dengan album. Hasil dicache per album dan
-per folder (pemindaian memanggil ini sekali per lagu — pemeriksaan MediaStore
-relatif mahal), dan cache dibuang saat pemindaian berikutnya supaya
-`folder.jpg` yang baru ditambahkan ikut terbaca.
+berisi foto yang tidak berhubungan dengan album.
+
+**Aturan cache** (penting untuk kecepatan membuka aplikasi, lihat catatan di
+bawah): kunci cache adalah *album*, bukan *lagu*. `artCacheKey(albumId, dir)`
+mengembalikan `"a<albumId>"` kalau albumnya diketahui dan `"f:<folder>"` kalau
+tidak. Versi pertama fungsi ini ikut memasukkan `filePath` (unik per lagu) ke
+dalam kunci, sehingga cache tidak pernah kena: pustaka 1.000 lagu berarti 1.000
+kali membuka gambar lewat ContentResolver saat aplikasi dibuka — terasa sebagai
+loading yang lama (dilaporkan pemilik proyek, diperbaiki v2.23.1). Cache gambar
+folder dipisah dan dikunci per folder, karena satu folder bisa memuat banyak
+album. Semua cache dibuang saat pemindaian berikutnya supaya `folder.jpg` yang
+baru ditambahkan ikut terbaca.
+
+**Catatan tentang loading awal:** pemindaian pustaka berjalan *setiap* aplikasi
+dibuka (`MainActivity` → `LaunchedEffect(granted)` → `MusicRepository.loadLibrary()`
++ `loadVideos()`), dan hasilnya **tidak disimpan di disk** — jadi biaya
+pemindaian dibayar ulang tiap kali. Inilah yang tampil sebagai lingkaran loading.
+Kalau nanti ingin membuka aplikasi terasa instan, langkahnya adalah menyimpan
+pustaka terakhir ke disk, menampilkannya lebih dulu, lalu memindai ulang di
+belakang layar.
 
 Pemilik album (`Album.artist`) diambil dari tag `ALBUM_ARTIST` lewat
 `albumArtistOf()` di `ui/LibraryScreens.kt`. Kalau tag itu tidak ada, dipakai
