@@ -132,8 +132,8 @@ Prasyarat: JDK 17+, Android SDK (compileSdk 36).
     # unit test JVM (tanpa perangkat/buatan): pembaca tag ReplayGain & gain
 
 Setiap push ke `main` dan setiap pull request diperiksa otomatis oleh GitHub
-Actions (`.github/workflows/ci.yml`): cek kurung kurawal, unit test, dan build
-APK debug.
+Actions (`.github/workflows/ci.yml`): cek kurung kurawal, unit test, screenshot
+test (Paparazzi), dan build APK debug.
 
 ## Struktur
 
@@ -162,3 +162,16 @@ APK debug.
 - Hi-res: FLAC/WAV hi-res ikut terpindai & diputar oleh ExoPlayer.
   Output mengikuti kemampuan DAC HP (bukan bit-perfect; DSD tidak
   didukung oleh ExoPlayer standar).
+
+## Lisensi
+
+[MIT](LICENSE) © 2026 zenn889 — siapa pun bebas memakai, mengubah, dan
+menyebarkan kode ini maupun versi modifikasinya (termasuk untuk keperluan
+komersial), dengan syarat notis hak cipta dan izin ini tetap disertakan.
+Perangkat lunak diberikan "sebagaimana adanya", tanpa jaminan apa pun.
+
+> Catatan pemisah yang penting: **kunci penandatangan rilis tidak disertakan**
+> di repo ini (lihat [docs/KEYS.md](docs/KEYS.md)). Jadi siapa pun bisa
+> membangun aplikasinya sendiri dari kode ini — itu memang tujuannya — tetapi
+> tidak bisa menerbitkan pembaruan yang dipasang di atas APK resmi, karena
+> tanda tangannya berbeda (Android menolak update dengan tanda tangan lain).
