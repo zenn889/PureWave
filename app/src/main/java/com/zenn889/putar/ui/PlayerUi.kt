@@ -77,12 +77,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -135,25 +137,46 @@ fun fmtMs(ms: Long): String {
 }
 
 @Composable
-fun ArtPlaceholder(modifier: Modifier = Modifier) {
+fun ArtPlaceholder(modifier: Modifier = Modifier, seed: String? = null) {
+    // U4: dulu hanya kotak abu rata. Sekarang gradien lembut + huruf awal
+    // (kalau judulnya diketahui), supaya sampul yang tidak ada tetap enak dilihat.
+    val initial = seed?.trim()?.firstOrNull()?.uppercaseChar()?.toString()
     Box(
-        modifier = modifier.background(SurfaceHigh),
+        modifier = modifier.background(
+            Brush.linearGradient(listOf(SurfaceHigh, SurfaceHigh.copy(alpha = 0.62f), SurfaceHigh))
+        ),
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = Icons.Filled.MusicNote,
-            contentDescription = null,
-            tint = FaintInk,
-            modifier = Modifier.size(34.dp)
-        )
+        if (initial != null) {
+            Text(
+                text = initial,
+                color = MutedInk,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Filled.MusicNote,
+                contentDescription = null,
+                tint = FaintInk,
+                modifier = Modifier.size(34.dp)
+            )
+        }
     }
 }
 
 @Composable
-fun AlbumArt(uri: Uri?, size: Dp, shape: Shape = RoundedCornerShape(Radius.sm), modifier: Modifier = Modifier) {
+fun AlbumArt(
+    uri: Uri?,
+    size: Dp,
+    shape: Shape = RoundedCornerShape(Radius.sm),
+    modifier: Modifier = Modifier,
+    /** Dipakai hanya saat gambarnya tidak ada: huruf awal judul sebagai penanda. */
+    seed: String? = null
+) {
     val artMod = modifier.size(size).clip(shape)
     if (uri == null) {
-        ArtPlaceholder(artMod)
+        ArtPlaceholder(artMod, seed)
         return
     }
     SubcomposeAsyncImage(
@@ -164,7 +187,7 @@ fun AlbumArt(uri: Uri?, size: Dp, shape: Shape = RoundedCornerShape(Radius.sm), 
     ) {
         when (painter.state) {
             is AsyncImagePainter.State.Success -> SubcomposeAsyncImageContent()
-            else -> ArtPlaceholder(Modifier.fillMaxSize())
+            else -> ArtPlaceholder(Modifier.fillMaxSize(), seed)
         }
     }
 }
@@ -203,6 +226,8 @@ fun TrackRow(
     onSwipeLeft: (() -> Unit)? = null,
     onSwipeRight: (() -> Unit)? = null
 ) {
+    // U5: getaran halus pada tekan lama & geser — dulu semuanya bisu
+    val haptic = LocalHapticFeedback.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -211,14 +236,27 @@ fun TrackRow(
             .background(
                 if (isCurrent) Coral.copy(alpha = 0.16f) else Color.Transparent
             )
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick?.let { asli ->
+                    {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        asli()
+                    }
+                }
+            )
             .pointerInput(onSwipeLeft, onSwipeRight) {
                 var acc = 0f
                 detectHorizontalDragGestures(
                     onHorizontalDrag = { _, d -> acc += d },
                     onDragEnd = {
-                        if (acc <= -110f) onSwipeLeft?.invoke()
-                        else if (acc >= 110f) onSwipeRight?.invoke()
+                        if (acc <= -110f) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onSwipeLeft?.invoke()
+                        } else if (acc >= 110f) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onSwipeRight?.invoke()
+                        }
                         acc = 0f
                     },
                     onDragCancel = { acc = 0f }
@@ -230,7 +268,8 @@ fun TrackRow(
         AlbumArt(
             track.artUri.toArtUri(),
             size = 52.dp,
-            shape = RoundedCornerShape(Radius.sm)
+            shape = RoundedCornerShape(Radius.sm),
+            seed = track.title
         )
         Spacer(Modifier.width(Space.lg))
         Column(Modifier.weight(1f)) {

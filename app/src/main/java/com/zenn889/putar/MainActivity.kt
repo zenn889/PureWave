@@ -15,6 +15,17 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.Box
@@ -26,6 +37,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
@@ -51,6 +63,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -76,6 +90,7 @@ import com.zenn889.putar.ui.AddToPlaylistSheet
 import com.zenn889.putar.ui.AlbumCard
 import com.zenn889.putar.ui.ArtistRow
 import com.zenn889.putar.ui.BackBar
+import com.zenn889.putar.ui.ContinueRow
 import com.zenn889.putar.ui.EmptyLibraryScreen
 import com.zenn889.putar.ui.EqualizerSheet
 import com.zenn889.putar.ui.FolderRow
@@ -107,9 +122,9 @@ import com.zenn889.putar.ui.StatsDialog
 import com.zenn889.putar.ui.TrackContextSheet
 import com.zenn889.putar.ui.TrackRow
 import com.zenn889.putar.ui.TrackStrip
+import com.zenn889.putar.ui.VideoCard
 import com.zenn889.putar.ui.VideoPlayback
 import com.zenn889.putar.ui.VideoPlayerScreen
-import com.zenn889.putar.ui.VideoRow
 import com.zenn889.putar.ui.WelcomeScreen
 import com.zenn889.putar.ui.buildAlbumsFrom
 import com.zenn889.putar.ui.buildArtistItems
@@ -123,10 +138,12 @@ import com.zenn889.putar.ui.nextSpeed
 import com.zenn889.putar.ui.pipParams
 import com.zenn889.putar.ui.readMirror
 import com.zenn889.putar.ui.searchTokens
+import com.zenn889.putar.ui.shouldOfferContinue
 import com.zenn889.putar.ui.sortedTracks
 import com.zenn889.putar.ui.toMediaItem
 import com.zenn889.putar.ui.toast
 import com.zenn889.putar.ui.theme.Coral
+import com.zenn889.putar.ui.theme.Motion
 import com.zenn889.putar.ui.theme.PutarTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -251,6 +268,37 @@ private fun buildTrackFromUri(context: Context, uri: Uri): Track? = runCatching 
         folder = null
     )
 }.getOrNull()
+
+/**
+ * Kunci animasi isi layar. Dibuat sebagai nilai (bukan dibaca dari state live)
+ * supaya saat transisi, salinan yang sedang keluar tetap menggambar isi
+ * lamanya — kalau membaca state live, dua salinan akan terlihat sama dan
+ * animasinya jadi kedipan.
+ */
+private data class ContentKey(
+    val tab: LibraryTab,
+    val album: Album? = null,
+    val artist: String? = null,
+    val folder: String? = null
+)
+
+/**
+ * U2: beranda muncul halus saat aplikasi dibuka — memudar sambil naik sedikit.
+ * Dipasang sebagai modifier supaya tidak perlu membungkus dan menggeser
+ * indentasi blok daftar yang panjang. [revealed] sengaja baru menjadi true
+ * setelah satu detak, supaya animasinya jalan pada kemunculan pertama.
+ */
+private fun Modifier.revealOnOpen(revealed: Boolean): Modifier = composed {
+    val v by animateFloatAsState(
+        targetValue = if (revealed) 1f else 0f,
+        animationSpec = tween(Motion.base),
+        label = "reveal"
+    )
+    graphicsLayer {
+        alpha = v
+        translationY = (1f - v) * 40f
+    }
+}
 
 @Composable
 fun PlayerApp() {
@@ -554,18 +602,21 @@ fun PlayerApp() {
         sortedTracks(base, sortChoice, playsMap, recencyMap)
     }
 
-    // daftar detail (album / artis / folder) — ikut aturan sortir yang aktif
-    val detailSongs = remember(
-        library, selAlbum, selArtist, selFolder, sortChoice, playsMap, recencyMap
-    ) {
+    // daftar lagu untuk satu detail (album / artis / folder), ikut sortir aktif.
+    // Dipanggil dari dalam animasi konten dengan nilai kunci — supaya salinan
+    // yang sedang menggeser keluar tetap memakai daftarnya sendiri.
+    fun detailSongsFor(album: Album?, artist: String?, folder: String?): List<Track> {
         val base = when {
-            selAlbum != null -> library.filter { it.albumId != null && it.albumId == selAlbum!!.albumId }
-            selArtist != null -> library.filter { it.displayArtist == selArtist }
-            selFolder != null -> library.filter { it.folder.orEmpty() == selFolder }
+            album != null -> library.filter { it.albumId != null && it.albumId == album.albumId }
+            artist != null -> library.filter { it.displayArtist == artist }
+            folder != null -> library.filter { it.folder.orEmpty() == folder }
             else -> emptyList()
         }
-        sortedTracks(base, sortChoice, playsMap, recencyMap)
+        return sortedTracks(base, sortChoice, playsMap, recencyMap)
     }
+
+    // kunci animasi konten: pustaka (per tab) atau detail yang sedang dibuka
+    val contentKey = ContentKey(tab, selAlbum, selArtist, selFolder)
 
     // sejarah & paling sering diputar (untuk beranda)
     val statsRecent = remember(library, statsVersion) {
@@ -582,6 +633,18 @@ fun PlayerApp() {
     var pendingResumeMs by remember { mutableLongStateOf(-1L) }
     var restoredApplied by remember { mutableStateOf(false) }
     var lastSavedPos by remember { mutableLongStateOf(-1L) }
+
+    // U4: lagu & posisi terakhir dari sesi sebelumnya — untuk kartu "Lanjutkan
+    // mendengarkan" di beranda. Hanya muncul kalau posisinya sudah lewat 5 detik.
+    // Diletakkan setelah state sesi karena ikut dihitung ulang saat sesi pulih.
+    val continueTrack = remember(library, restoredApplied) {
+        val s = SessionStore.load(context)
+        if (s == null) null
+        else {
+            val t = s.first.getOrNull(s.second)?.let { songsByUri[it] }
+            if (t == null || !shouldOfferContinue(s.third)) null else t to s.third
+        }
+    }
 
     // sleep timer: "setelah lagu ini selesai" & "setelah N lagu"
     var sleepEndOfTrack by remember { mutableStateOf(false) }
@@ -880,13 +943,35 @@ fun PlayerApp() {
         toast(context, if (ok) "Data dipulihkan" else "File cadangan tidak valid")
     }
 
+    // U2: bagian beranda muncul bertahap — sekali per sesi aplikasi, jadi tidak
+    // berulang setiap kali digulir atau setiap kembali ke tab ini
+    var homeRevealed by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(60)
+        homeRevealed = true
+    }
+
+    // U3: salinan isi mini player yang terakhir berisi — dipakai saat bar-nya
+    // menggeser turun, supaya tidak berubah jadi bar kosong
+    val miniSource = remember { mutableStateOf(mirror) }
+    LaunchedEffect(mirror) {
+        if (mirror.hasMedia) miniSource.value = mirror
+    }
+
     Scaffold(
         containerColor = Color.Transparent,
         bottomBar = {
             Column {
-                if (mirror.hasMedia) {
+                // U3: mini player naik dari bawah saat lagu mulai, turun saat berhenti
+                AnimatedVisibility(
+                    visible = mirror.hasMedia,
+                    enter = slideInVertically(animationSpec = tween(Motion.base)) { it } +
+                        fadeIn(tween(Motion.base)),
+                    exit = slideOutVertically(animationSpec = tween(Motion.base)) { it } +
+                        fadeOut(tween(Motion.base))
+                ) {
                     MiniPlayer(
-                        mirror = mirror,
+                        mirror = miniSource.value,
                         progress = progressState,
                         onClick = { if (mirror.hasMedia) showFullPlayer = true },
                         onPlayPause = {
@@ -926,232 +1011,272 @@ fun PlayerApp() {
                 )
                 tracks.isEmpty() && videos.isEmpty() -> EmptyLibraryScreen()
                 else -> Column(Modifier.fillMaxSize()) {
-                    if (inDetail) {
-                        val back = {
-                            selAlbum = null
-                            selArtist = null
-                            selFolder = null
-                        }
-                        when {
-                            selAlbum != null -> {
-                                BackBar(
-                                    selAlbum!!.title,
-                                    "${selAlbum!!.displayArtist} · ${selAlbum!!.songCount} lagu",
-                                    onBack = back,
-                                    trailing = { SortMenuButton(current = sortChoice, onSelect = { setSort(it) }) }
-                                )
-                                LibraryList(
-                                    tracks = detailSongs,
-                                    currentMediaId = currentMediaItemUri(controller),
-                                    onPlay = { playList(detailSongs, it, false) },
-                                    onLongClickTrack = { contextTrack = it; showContextMenu = true },
-                                    modifier = Modifier.weight(1f)
-                                )
+                    AnimatedContent(
+                        targetState = contentKey,
+                        transitionSpec = {
+                            val masukDetail = targetState.album != null ||
+                                targetState.artist != null || targetState.folder != null
+                            val keluarDetail = initialState.album != null ||
+                                initialState.artist != null || initialState.folder != null
+                            val durasi = tween<Float>(Motion.base)
+                            when {
+                                // buka detail: menggeser masuk dari kanan
+                                masukDetail -> (slideInHorizontally { it / 4 } + fadeIn(durasi))
+                                    .togetherWith(fadeOut(durasi))
+                                // tutup detail: menggeser keluar ke kanan
+                                keluarDetail -> fadeIn(durasi)
+                                    .togetherWith(slideOutHorizontally { it / 4 } + fadeOut(durasi))
+                                // ganti tab: cukup memudar, jangan menggeser
+                                else -> fadeIn(durasi).togetherWith(fadeOut(durasi))
                             }
-                            selArtist != null -> {
-                                BackBar(
-                                    selArtist!!,
-                                    "${detailSongs.size} lagu",
-                                    onBack = back,
-                                    trailing = { SortMenuButton(current = sortChoice, onSelect = { setSort(it) }) }
-                                )
-                                LibraryList(
-                                    tracks = detailSongs,
-                                    currentMediaId = currentMediaItemUri(controller),
-                                    onPlay = { playList(detailSongs, it, false) },
-                                    onLongClickTrack = { contextTrack = it; showContextMenu = true },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                            else -> {
-                                val f = folderItems.firstOrNull { it.key == selFolder }
-                                BackBar(
-                                    f?.name ?: "Folder",
-                                    if (f != null)
-                                        (f.path.ifBlank { "Penyimpanan utama" } + " · ${f.songCount} lagu")
-                                    else "${detailSongs.size} lagu",
-                                    onBack = back,
-                                    trailing = { SortMenuButton(current = sortChoice, onSelect = { setSort(it) }) }
-                                )
-                                LibraryList(
-                                    tracks = detailSongs,
-                                    currentMediaId = currentMediaItemUri(controller),
-                                    onPlay = { playList(detailSongs, it, false) },
-                                    onLongClickTrack = { contextTrack = it; showContextMenu = true },
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-                    } else {
-                        LibraryHeader(
-                            tab = tab,
-                            totalSongs = tracks.size,
-                            rootSongs = rootSongs.size,
-                            rootAlbums = rootAlbums.size,
-                            rootArtists = rootArtists.size,
-                            rootFolders = rootFolders.size,
-                            rootVideos = rootVideos.size,
-                            rootFavs = favQueryTracks.size,
-                            query = query,
-                            onQueryChange = {
-                                query = it
-                                if (inDetail) {
-                                    selAlbum = null; selArtist = null; selFolder = null
-                                }
-                            },
-                            onOpenSettings = { showSettings = true },
-                            onPlayAllShuffled = { playList(rootSongs, 0, shuffled = true) },
-                            onTabSelect = { tab = it },
-                            showSort = tab == LibraryTab.LAGU || tab == LibraryTab.FAVORIT,
-                            sortChoice = sortChoice,
-                            onSortChange = { setSort(it) }
-                        )
-                        when (tab) {
-                            LibraryTab.LAGU -> if (rootSongs.isEmpty()) {
-                                SimpleEmpty("Tidak ada lagu cocok")
-                            } else LazyColumn(
-                                modifier = Modifier.weight(1f),
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                    top = 4.dp, bottom = 18.dp
-                                )
+                        },
+                        modifier = Modifier.weight(1f),
+                        label = "konten"
+                    ) { key ->
+                        Column(Modifier.fillMaxSize()) {
+                            // daftar lagu detail dihitung sekali per kunci, bukan
+                            // tiap kerangka animasi
+                            val songs = remember(
+                                key.album, key.artist, key.folder,
+                                library, sortChoice, playsMap, recencyMap
                             ) {
-                                item { HeroCard(rootSongs) { playList(rootSongs, 0, true) } }
-                                if (q.isEmpty()) {
-                                    item {
-                                        QuickAccessGrid(
-                                            entries = listOf(
-                                                QuickEntry("album", "Album", Icons.Filled.Album, rootAlbums.size, true),
-                                                QuickEntry("artis", "Artis", Icons.Filled.People, rootArtists.size),
-                                                QuickEntry("folder", "Folder", Icons.Filled.Folder, rootFolders.size),
-                                                QuickEntry("video", "Video", Icons.Filled.Movie, rootVideos.size),
-                                                QuickEntry("favorit", "Favorit", Icons.Filled.Favorite, favQueryTracks.size, true),
-                                                QuickEntry("playlist", "Playlist", Icons.AutoMirrored.Filled.PlaylistPlay),
-                                                QuickEntry("statistik", "Statistik", Icons.Filled.Insights),
-                                                QuickEntry("eq", "Equalizer", Icons.Filled.Equalizer)
+                                detailSongsFor(key.album, key.artist, key.folder)
+                            }
+
+                            if (key.album != null || key.artist != null || key.folder != null) {
+                                val back = {
+                                    selAlbum = null
+                                    selArtist = null
+                                    selFolder = null
+                                }
+                                when {
+                                    key.album != null -> {
+                                        BackBar(
+                                            key.album!!.title,
+                                            "${key.album!!.displayArtist} · ${key.album!!.songCount} lagu",
+                                            onBack = back,
+                                            trailing = { SortMenuButton(current = sortChoice, onSelect = { setSort(it) }) }
+                                        )
+                                        LibraryList(
+                                            tracks = songs,
+                                            currentMediaId = currentMediaItemUri(controller),
+                                            onPlay = { playList(songs, it, false) },
+                                            onLongClickTrack = { contextTrack = it; showContextMenu = true },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                    key.artist != null -> {
+                                        BackBar(
+                                            key.artist!!,
+                                            "${songs.size} lagu",
+                                            onBack = back,
+                                            trailing = { SortMenuButton(current = sortChoice, onSelect = { setSort(it) }) }
+                                        )
+                                        LibraryList(
+                                            tracks = songs,
+                                            currentMediaId = currentMediaItemUri(controller),
+                                            onPlay = { playList(songs, it, false) },
+                                            onLongClickTrack = { contextTrack = it; showContextMenu = true },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                    else -> {
+                                        val f = folderItems.firstOrNull { it.key == key.folder }
+                                        BackBar(
+                                            f?.name ?: "Folder",
+                                            if (f != null)
+                                                (f.path.ifBlank { "Penyimpanan utama" } + " · ${f.songCount} lagu")
+                                            else "${songs.size} lagu",
+                                            onBack = back,
+                                            trailing = { SortMenuButton(current = sortChoice, onSelect = { setSort(it) }) }
+                                        )
+                                        LibraryList(
+                                            tracks = songs,
+                                            currentMediaId = currentMediaItemUri(controller),
+                                            onPlay = { playList(songs, it, false) },
+                                            onLongClickTrack = { contextTrack = it; showContextMenu = true },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                }
+                            } else {
+                                LibraryHeader(
+                                    tab = key.tab,
+                                    totalSongs = tracks.size,
+                                    rootSongs = rootSongs.size,
+                                    rootAlbums = rootAlbums.size,
+                                    rootArtists = rootArtists.size,
+                                    rootFolders = rootFolders.size,
+                                    rootVideos = rootVideos.size,
+                                    rootFavs = favQueryTracks.size,
+                                    query = query,
+                                    onQueryChange = {
+                                        query = it
+                                        if (inDetail) {
+                                            selAlbum = null; selArtist = null; selFolder = null
+                                        }
+                                    },
+                                    onOpenSettings = { showSettings = true },
+                                    onPlayAllShuffled = { playList(rootSongs, 0, shuffled = true) },
+                                    onTabSelect = { tab = it },
+                                    showSort = key.tab == LibraryTab.LAGU || key.tab == LibraryTab.FAVORIT,
+                                    sortChoice = sortChoice,
+                                    onSortChange = { setSort(it) }
+                                )
+                                when (key.tab) {
+                                    LibraryTab.LAGU -> if (rootSongs.isEmpty()) {
+                                        SimpleEmpty("Tidak ada lagu cocok")
+                                    } else LazyColumn(
+                                        modifier = Modifier.weight(1f).revealOnOpen(homeRevealed),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                            top = 4.dp, bottom = 18.dp
+                                        )
+                                    ) {
+                                        item { HeroCard(rootSongs) { playList(rootSongs, 0, true) } }
+                                        // U4: pintasan melanjutkan lagu terakhir
+                                        continueTrack?.let { (lagu, posisi) ->
+                                            item { ContinueRow(lagu, posisi) { resumePlay() } }
+                                        }
+                                        if (q.isEmpty()) {
+                                            item {
+                                                QuickAccessGrid(
+                                                    entries = listOf(
+                                                        QuickEntry("album", "Album", Icons.Filled.Album, rootAlbums.size, true),
+                                                        QuickEntry("artis", "Artis", Icons.Filled.People, rootArtists.size),
+                                                        QuickEntry("folder", "Folder", Icons.Filled.Folder, rootFolders.size),
+                                                        QuickEntry("video", "Video", Icons.Filled.Movie, rootVideos.size),
+                                                        QuickEntry("favorit", "Favorit", Icons.Filled.Favorite, favQueryTracks.size, true),
+                                                        QuickEntry("playlist", "Playlist", Icons.AutoMirrored.Filled.PlaylistPlay),
+                                                        QuickEntry("statistik", "Statistik", Icons.Filled.Insights),
+                                                        QuickEntry("eq", "Equalizer", Icons.Filled.Equalizer)
+                                                    )
+                                                ) { entry ->
+                                                    when (entry.key) {
+                                                        "album" -> tab = LibraryTab.ALBUM
+                                                        "artis" -> tab = LibraryTab.ARTIS
+                                                        "folder" -> tab = LibraryTab.FOLDER
+                                                        "video" -> tab = LibraryTab.VIDEO
+                                                        "favorit" -> tab = LibraryTab.FAVORIT
+                                                        "playlist" -> showPlaylistBrowser = true
+                                                        "statistik" -> showStats = true
+                                                        "eq" -> showEq = true
+                                                    }
+                                                }
+                                            }
+                                            item {
+                                                RecentlyAddedRow(rootSongs) { list, idx ->
+                                                    playList(list, idx, false)
+                                                }
+                                            }
+                                            if (statsRecent.isNotEmpty()) {
+                                                item {
+                                                    TrackStrip("Baru diputar", statsRecent) { list, idx ->
+                                                        playList(list, idx, false)
+                                                    }
+                                                }
+                                            }
+                                            if (statsTop.isNotEmpty()) {
+                                                item {
+                                                    TrackStrip("Paling sering diputar", statsTop) { list, idx ->
+                                                        playList(list, idx, false)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        item {
+                                            SectionHeader(
+                                                title = if (q.isEmpty()) "Semua lagu" else "Hasil pencarian",
+                                                count = rootSongs.size
                                             )
-                                        ) { entry ->
-                                            when (entry.key) {
-                                                "album" -> tab = LibraryTab.ALBUM
-                                                "artis" -> tab = LibraryTab.ARTIS
-                                                "folder" -> tab = LibraryTab.FOLDER
-                                                "video" -> tab = LibraryTab.VIDEO
-                                                "favorit" -> tab = LibraryTab.FAVORIT
-                                                "playlist" -> showPlaylistBrowser = true
-                                                "statistik" -> showStats = true
-                                                "eq" -> showEq = true
+                                        }
+                                        itemsIndexed(rootSongs, key = { _, t -> t.contentUri }) { index, track ->
+                                            TrackRow(
+                                                track = track,
+                                                isCurrent = track.contentUri == currentMediaItemUri(controller),
+                                                onClick = { playList(rootSongs, index, false) },
+                                                onLongClick = { contextTrack = track; showContextMenu = true },
+                                                onSwipeLeft = { addToQueue(track) },
+                                                onSwipeRight = { toggleFav(track.contentUri) }
+                                            )
+                                        }
+                                    }
+                                    LibraryTab.ALBUM -> if (rootAlbums.isEmpty()) {
+                                        SimpleEmpty("Tidak ada album cocok")
+                                    } else LazyVerticalGrid(
+                                        columns = GridCells.Adaptive(minSize = 150.dp),
+                                        modifier = Modifier.weight(1f),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                            horizontal = 10.dp, vertical = 6.dp
+                                        )
+                                    ) {
+                                        gridItems(rootAlbums, key = { it.albumId }) { album ->
+                                            AlbumCard(album) { selAlbum = album }
+                                        }
+                                    }
+                                    LibraryTab.ARTIS -> if (rootArtists.isEmpty()) {
+                                        SimpleEmpty("Tidak ada artis cocok")
+                                    } else LazyColumn(
+                                        modifier = Modifier.weight(1f),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                            horizontal = 8.dp, vertical = 6.dp
+                                        )
+                                    ) {
+                                        items(rootArtists, key = { it.first }) { (name, count) ->
+                                            ArtistRow(name, count) { selArtist = name }
+                                        }
+                                    }
+                                    LibraryTab.FOLDER -> if (rootFolders.isEmpty()) {
+                                        SimpleEmpty("Tidak ada folder cocok")
+                                    } else LazyColumn(
+                                        modifier = Modifier.weight(1f),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                            horizontal = 8.dp, vertical = 6.dp
+                                        )
+                                    ) {
+                                        items(rootFolders, key = { it.path }) { item ->
+                                            FolderRow(item) { selFolder = item.key }
+                                        }
+                                    }
+                                    LibraryTab.VIDEO -> if (rootVideos.isEmpty()) {
+                                        SimpleEmpty("Tidak ada video cocok")
+                                    } else LazyVerticalGrid(
+                                        columns = GridCells.Fixed(2),
+                                        modifier = Modifier.weight(1f),
+                                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                            horizontal = 10.dp, vertical = 6.dp
+                                        )
+                                    ) {
+                                        gridItemsIndexed(rootVideos, key = { _, v -> v.mediaId }) { vi, video ->
+                                            VideoCard(video) {
+                                                controller?.pause()
+                                                videoQueue = rootVideos
+                                                videoIndex = vi
+                                                showVideoPlayer = true
                                             }
                                         }
                                     }
-                                    item {
-                                        RecentlyAddedRow(rootSongs) { list, idx ->
-                                            playList(list, idx, false)
+                                    LibraryTab.FAVORIT -> Column(Modifier.weight(1f)) {
+                                        if (favQueryTracks.isEmpty()) {
+                                            SimpleEmpty(
+                                                if (favTracks.isEmpty())
+                                                    "Belum ada favorit — tekan lama sebuah lagu lalu pilih Favorit."
+                                                else "Tidak ada favorit cocok"
+                                            )
+                                        } else {
+                                            HeroCard(favQueryTracks) { playList(favQueryTracks, 0, true) }
+                                            LibraryList(
+                                                tracks = favQueryTracks,
+                                                currentMediaId = currentMediaItemUri(controller),
+                                                onPlay = { playList(favQueryTracks, it, false) },
+                                                onLongClickTrack = { contextTrack = it; showContextMenu = true },
+                                                modifier = Modifier.weight(1f)
+                                            )
                                         }
                                     }
-                                    if (statsRecent.isNotEmpty()) {
-                                        item {
-                                            TrackStrip("Baru diputar", statsRecent) { list, idx ->
-                                                playList(list, idx, false)
-                                            }
-                                        }
-                                    }
-                                    if (statsTop.isNotEmpty()) {
-                                        item {
-                                            TrackStrip("Paling sering diputar", statsTop) { list, idx ->
-                                                playList(list, idx, false)
-                                            }
-                                        }
-                                    }
                                 }
-                                item {
-                                    SectionHeader(
-                                        title = if (q.isEmpty()) "Semua lagu" else "Hasil pencarian",
-                                        count = rootSongs.size
-                                    )
-                                }
-                                itemsIndexed(rootSongs, key = { _, t -> t.contentUri }) { index, track ->
-                                    TrackRow(
-                                        track = track,
-                                        isCurrent = track.contentUri == currentMediaItemUri(controller),
-                                        onClick = { playList(rootSongs, index, false) },
-                                        onLongClick = { contextTrack = track; showContextMenu = true },
-                                        onSwipeLeft = { addToQueue(track) },
-                                        onSwipeRight = { toggleFav(track.contentUri) }
-                                    )
-                                }
-                            }
-                            LibraryTab.ALBUM -> if (rootAlbums.isEmpty()) {
-                                SimpleEmpty("Tidak ada album cocok")
-                            } else LazyVerticalGrid(
-                                columns = GridCells.Adaptive(minSize = 150.dp),
-                                modifier = Modifier.weight(1f),
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                    horizontal = 10.dp, vertical = 6.dp
-                                )
-                            ) {
-                                gridItems(rootAlbums, key = { it.albumId }) { album ->
-                                    AlbumCard(album) { selAlbum = album }
-                                }
-                            }
-                            LibraryTab.ARTIS -> if (rootArtists.isEmpty()) {
-                                SimpleEmpty("Tidak ada artis cocok")
-                            } else LazyColumn(
-                                modifier = Modifier.weight(1f),
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                    horizontal = 8.dp, vertical = 6.dp
-                                )
-                            ) {
-                                items(rootArtists, key = { it.first }) { (name, count) ->
-                                    ArtistRow(name, count) { selArtist = name }
-                                }
-                            }
-                            LibraryTab.FOLDER -> if (rootFolders.isEmpty()) {
-                                SimpleEmpty("Tidak ada folder cocok")
-                            } else LazyColumn(
-                                modifier = Modifier.weight(1f),
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                    horizontal = 8.dp, vertical = 6.dp
-                                )
-                            ) {
-                                items(rootFolders, key = { it.path }) { item ->
-                                    FolderRow(item) { selFolder = item.key }
-                                }
-                            }
-                            LibraryTab.VIDEO -> if (rootVideos.isEmpty()) {
-                                SimpleEmpty("Tidak ada video cocok")
-                            } else LazyColumn(
-                                modifier = Modifier.weight(1f),
-                                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                    horizontal = 8.dp, vertical = 6.dp
-                                )
-                            ) {
-                                itemsIndexed(rootVideos, key = { _, v -> v.mediaId }) { vi, video ->
-                                    VideoRow(video) {
-                                        controller?.pause()
-                                        videoQueue = rootVideos
-                                        videoIndex = vi
-                                        showVideoPlayer = true
-                                    }
-                                }
-                            }
-                            LibraryTab.FAVORIT -> Column(Modifier.weight(1f)) {
-                                if (favQueryTracks.isEmpty()) {
-                                    SimpleEmpty(
-                                        if (favTracks.isEmpty())
-                                            "Belum ada favorit — tekan lama sebuah lagu lalu pilih Favorit."
-                                        else "Tidak ada favorit cocok"
-                                    )
-                                } else {
-                                    HeroCard(favQueryTracks) { playList(favQueryTracks, 0, true) }
-                                    LibraryList(
-                                        tracks = favQueryTracks,
-                                        currentMediaId = currentMediaItemUri(controller),
-                                        onPlay = { playList(favQueryTracks, it, false) },
-                                        onLongClickTrack = { contextTrack = it; showContextMenu = true },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                }
-                            }
                         }
+                    }
+
                     }
                 }
             }
@@ -1301,13 +1426,22 @@ fun PlayerApp() {
         )
     }
 
-    if (showVideoPlayer && videoQueue.isNotEmpty()) {
+    // U1: pemutar video naik dari bawah saat dibuka, turun saat ditutup.
+    // Antriannya sengaja TIDAK dikosongkan saat menutup: animasi keluar masih
+    // perlu menggambar isinya (kalau dikosongkan, layarnya kosong saat turun).
+    // Antrian diganti sendiri setiap kali sebuah video dibuka.
+    AnimatedVisibility(
+        visible = showVideoPlayer && videoQueue.isNotEmpty(),
+        enter = slideInVertically(animationSpec = tween(Motion.base)) { it } +
+            fadeIn(tween(Motion.base)),
+        exit = slideOutVertically(animationSpec = tween(Motion.base)) { it } +
+            fadeOut(tween(Motion.base))
+    ) {
         VideoPlayerScreen(
             queue = videoQueue,
             startIndex = videoIndex
         ) {
             showVideoPlayer = false
-            videoQueue = emptyList()
         }
     }
 

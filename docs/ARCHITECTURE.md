@@ -85,7 +85,10 @@ UI (`ui/`):
 - `SettingsSheet.kt` + `ThemeSheet.kt` + `DataDialogs.kt` — Setelan, Tema,
   Filter pustaka & Statistik.
 - `EqualizerSheet.kt` — UI EQ.
-- `VideoScreens.kt` — `VideoRow` (thumbnail) & `VideoPlayerScreen`
+- `VideoScreens.kt` — `VideoCard` (kisi tab Video, U6: miniatur 16:9 + durasi,
+  berkilau saat belum termuat; miniatur disimpan ke disk di `cacheDir/video-thumb`
+  dengan kunci id+tanggal, disisakan 200 berkas terbaru — aturannya ada di
+  `thumbFilesToDelete` supaya bisa diuji) & `VideoPlayerScreen`
   (fullscreen + subtitle + PiP + resume; objek `VideoPlayback` untuk PiP).
   Layar pemutar juga punya dua kontrol yang muncul dengan overlay:
   **kecepatan putar** dan **mode tampilan** (`FIT_MODES`: Fit → Isi → Zoom).
@@ -393,7 +396,6 @@ labelnya menjadi "Berbagai artis". Sebelumnya album selalu dinamai dari **lagu
 pertamanya**, sehingga kompilasi tampak milik satu artis.
 
 ### 4l. Tombol/gestur kembali (wajib untuk layar dalam aplikasi)
-
 Setiap layar di dalam aplikasi yang **bukan** `ModalBottomSheet`/`AlertDialog`
 wajib punya `BackHandler`. Tanpa itu, tombol/gestur kembali Android langsung
 menutup aplikasi, bukan menutup layar yang sedang terbuka.
@@ -417,10 +419,32 @@ menangani kembali sendiri. Pemenang saat dua penangan sama-sama aktif adalah
 yang **didaftarkan paling akhir** — karena `VideoPlayerScreen` dikomposisi
 setelah konten utama, penangannya menang saat keduanya terbuka.
 
+### 4m. Gerak & animasi (U1–U3, v2.24.5)
+
+Semua durasi animasi diambil dari `ui/theme/Tokens.kt` (`Motion.quick` 160 ms,
+`Motion.base` 280 ms, `Motion.slow` 900 ms) — jangan tulis angka durasi
+langsung.
+
+- Isi layar dibungkus `AnimatedContent` dengan kunci `ContentKey` (tab + detail
+  album/artis/folder). Kuncinya berisi **nilai**, bukan dibaca dari state live,
+  karena salinan yang sedang keluar harus tetap menggambar isinya sendiri.
+  Kalau membaca state live, kedua salinan tampil sama dan hasilnya cuma
+  kedipan. `detailSongsFor(...)` juga dipanggil dari nilai kunci itu
+  (di-`remember` per kunci) supaya daftar lagu detail tidak dihitung ulang tiap
+  kerangka animasi.
+- Pemutar video dan mini player memakai `AnimatedVisibility` dengan geser +
+  pudar. Isinya harus tetap tersedia selama animasi keluar: antrian video
+  sengaja **tidak** dikosongkan saat menutup, dan mini player memakai salinan
+  `miniSource` terakhir yang berisi. Tanpa itu, yang terlihat saat menggeser
+  turun adalah layar atau bar kosong.
+- Beranda memudar+naik sekali saat aplikasi dibuka (`Modifier.revealOnOpen`),
+  ditahan `homeRevealed` yang menetap `true` — supaya animasinya tidak berulang
+  setiap kali daftar digulir. Aturan umum: animasi daftar hanya sekali saat
+  muncul, tidak per item saat menggulir.
+
 ---
 
 ## 5. Rilis APK (langkah lengkap)
-
 ```bash
 cd ~/putar-native
 # 1) naikkan versi di app/build.gradle.kts (versionCode = versionCode+1)

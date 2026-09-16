@@ -40,6 +40,8 @@ import com.zenn889.putar.ui.theme.Coral
 import com.zenn889.putar.ui.theme.FaintInk
 import com.zenn889.putar.ui.theme.Ink
 import com.zenn889.putar.ui.theme.MutedInk
+import com.zenn889.putar.ui.theme.Radius
+import com.zenn889.putar.ui.theme.Space
 
 /**
  * Judul seksi beranda: batang aksen kecil + judul tebal + jumlah di kanan.
@@ -86,6 +88,89 @@ fun SectionHeader(
     }
 }
 
+/** Kartu "Lanjutkan" hanya muncul kalau posisi terakhir sudah lewat 5 detik. */
+internal fun shouldOfferContinue(positionMs: Long): Boolean = positionMs > 5_000L
+
+/**
+ * Kartu "Lanjutkan mendengarkan" (U4) — lagu & posisi terakhir dari sesi
+ * sebelumnya, supaya tidak perlu mencari lagunya lagi. Ketuk untuk melanjutkan;
+ * pemutaran memakai jalur auto-resume yang sudah ada.
+ */
+@Composable
+fun ContinueRow(track: Track, positionMs: Long, onPlay: () -> Unit) {
+    val frac = if (track.durationMs > 0L) {
+        (positionMs.toFloat() / track.durationMs.toFloat()).coerceIn(0.02f, 1f)
+    } else 0.02f
+    SectionHeader("Lanjutkan mendengarkan")
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(Radius.lg))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f))
+            .clickable(onClick = onPlay)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AlbumArt(
+            uri = track.artUri.toArtUri(),
+            size = 58.dp,
+            shape = RoundedCornerShape(Radius.sm),
+            seed = track.title
+        )
+        Spacer(Modifier.width(Space.lg))
+        Column(Modifier.weight(1f)) {
+            Text(
+                track.title,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = Ink
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                "${track.displayArtist} · ${fmtMs(positionMs)}",
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.bodySmall,
+                color = MutedInk
+            )
+            Spacer(Modifier.height(Space.sm))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(frac)
+                        .height(3.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Coral)
+                )
+            }
+        }
+        Spacer(Modifier.width(Space.md))
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .clip(CircleShape)
+                .background(Coral),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Filled.PlayArrow,
+                contentDescription = "Lanjutkan memutar",
+                tint = Color.White,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+    }
+}
+
 /** Strip horizontal kartu lagu ber-artwork album — dipakai beberapa bagian beranda. */
 @Composable
 fun TrackStrip(
@@ -110,7 +195,8 @@ fun TrackStrip(
                             uri = track.artUri.toArtUri(),
                             size = 148.dp,
                             shape = RoundedCornerShape(18.dp),
-                            modifier = Modifier.shadow(14.dp, RoundedCornerShape(18.dp), clip = false)
+                            modifier = Modifier.shadow(14.dp, RoundedCornerShape(18.dp), clip = false),
+                            seed = track.title
                         )
                         // tombol putar kecil menempel di sudut sampul
                         Box(

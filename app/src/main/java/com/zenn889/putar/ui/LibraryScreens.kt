@@ -93,7 +93,8 @@ fun AlbumCard(album: Album, onClick: () -> Unit) {
             uri = album.artUri.toArtUri(),
             size = 148.dp,
             shape = RoundedCornerShape(Radius.md),
-            modifier = Modifier.shadow(Elev.card, RoundedCornerShape(Radius.md), clip = false)
+            modifier = Modifier.shadow(Elev.card, RoundedCornerShape(Radius.md), clip = false),
+            seed = album.title
         )
         Spacer(Modifier.height(Space.sm))
         Column(Modifier.fillMaxWidth().padding(horizontal = Space.xs)) {

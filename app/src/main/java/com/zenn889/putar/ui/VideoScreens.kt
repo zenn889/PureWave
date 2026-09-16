@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.PictureInPictureParams
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.util.Rational
 import android.util.Size
@@ -11,12 +12,19 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -69,9 +77,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
@@ -96,10 +107,13 @@ import com.zenn889.putar.ui.theme.FaintInk
 import com.zenn889.putar.ui.theme.Ink
 import com.zenn889.putar.ui.theme.MutedInk
 import com.zenn889.putar.ui.theme.Radius
+import com.zenn889.putar.ui.theme.Space
+import com.zenn889.putar.ui.theme.pressScale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileOutputStream
 import kotlin.math.roundToInt
 
 /** Status pemutaran video (dipakai untuk PiP saat user tekan Home). */
@@ -190,17 +204,56 @@ private fun applyWindowBrightness(activity: Activity?, value: Float) {
     }
 }
 
-/* ---------- cache thumbnail video ---------- */
+/* ---------- cache thumbnail video (memori + disk) ---------- */
 
 private val thumbCache = object : LinkedHashMap<String, Bitmap>(16, 0.75f, true) {
     override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Bitmap>): Boolean =
         size > 160
 }
 
+/**
+ * Berkas miniatur di cacheDir (boleh dihapus sistem kapan saja). Kuncinya
+ * menyertakan tanggal tambah video, jadi kalau file videonya berubah, miniatur
+ * lamanya tidak dipakai lagi.
+ */
+private fun thumbFile(context: Context, item: VideoItem): File = File(
+    File(context.cacheDir, "video-thumb").apply { mkdirs() },
+    "v${item.mediaId}-${item.dateAddedMs}.jpg"
+)
+
+/**
+ * Urutan berkas miniatur yang boleh dihapus: sisakan [keep] yang paling baru.
+ * Dipisah begini supaya aturannya bisa diuji tanpa perangkat Android.
+ */
+internal fun thumbFilesToDelete(semua: List<Pair<String, Long>>, keep: Int = 200): List<String> =
+    semua.sortedByDescending { it.second }.drop(keep).map { it.first }
+
+/** Sisakan 200 miniatur terbaru supaya folder cache tidak membengkak. */
+private fun rapikanThumb(context: Context) {
+    runCatching {
+        val semua = File(context.cacheDir, "video-thumb").listFiles() ?: return
+        thumbFilesToDelete(semua.map { it.absolutePath to it.lastModified() })
+            .forEach { File(it).delete() }
+    }
+}
+
 private suspend fun loadVideoThumb(context: Context, item: VideoItem): Bitmap? =
     withContext(Dispatchers.IO) {
         val key = item.contentUri.toString()
         thumbCache[key]?.let { return@withContext it }
+
+        // 1) dari disk — inilah yang membuat tab Video tidak lagi abu-abu
+        //    setiap aplikasi dibuka
+        val berkas = thumbFile(context, item)
+        val dariDisk = if (berkas.isFile) {
+            runCatching { BitmapFactory.decodeFile(berkas.absolutePath) }.getOrNull()
+        } else null
+        if (dariDisk != null) {
+            thumbCache[key] = dariDisk
+            return@withContext dariDisk
+        }
+
+        // 2) dari MediaStore, lalu simpan untuk pembukaan berikutnya
         val bmp = runCatching {
             if (Build.VERSION.SDK_INT >= 29) {
                 context.contentResolver.loadThumbnail(item.contentUri, Size(480, 270), null)
@@ -212,31 +265,66 @@ private suspend fun loadVideoThumb(context: Context, item: VideoItem): Bitmap? =
                 )
             }
         }.getOrNull()
-        if (bmp != null) thumbCache[key] = bmp
+        if (bmp != null) {
+            thumbCache[key] = bmp
+            runCatching {
+                FileOutputStream(berkas).use { out ->
+                    bmp.compress(Bitmap.CompressFormat.JPEG, 80, out)
+                }
+            }
+            rapikanThumb(context)
+        }
         bmp
     }
 
-/** Satu baris video dengan thumbnail (preview) asli. */
+/** Kerangka berkilau untuk miniatur yang belum termuat (U4) — pengganti kotak abu datar. */
 @Composable
-fun VideoRow(item: VideoItem, onClick: () -> Unit) {
+private fun ShimmerBox(modifier: Modifier = Modifier) {
+    val t = rememberInfiniteTransition(label = "kilau")
+    val x by t.animateFloat(
+        initialValue = -1f,
+        targetValue = 2f,
+        animationSpec = infiniteRepeatable(tween(1_200, easing = LinearEasing)),
+        label = "kilau-x"
+    )
+    Box(
+        modifier = modifier.background(
+            Brush.linearGradient(
+                colors = listOf(Color(0xFF1C1E24), Color(0xFF2C3039), Color(0xFF1C1E24)),
+                start = Offset(x * 320f, 0f),
+                end = Offset(x * 320f + 220f, 160f)
+            )
+        )
+    )
+}
+
+/**
+ * Kartu video untuk kisi (U6): miniatur besar (16:9), durasi di sudut, judul di
+ * bawah. Menggantikan baris daftar lama supaya tab Video terasa seperti galeri.
+ */
+@Composable
+fun VideoCard(item: VideoItem, onClick: () -> Unit) {
     val context = LocalContext.current
+    val interaction = remember { MutableInteractionSource() }
     var thumb by remember(item.contentUri) { mutableStateOf<Bitmap?>(null) }
     LaunchedEffect(item.contentUri) {
         thumb = loadVideoThumb(context, item)
     }
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = Space.xs, vertical = Space.xs)
+            .clip(RoundedCornerShape(Radius.md))
+            .pressScale(interaction)
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .padding(Space.xs)
     ) {
         Box(
             modifier = Modifier
-                .size(width = 96.dp, height = 56.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(Radius.md))
                 .background(Color(0xFF1C1E24))
         ) {
             val bmp = thumb
@@ -248,21 +336,14 @@ fun VideoRow(item: VideoItem, onClick: () -> Unit) {
                     modifier = Modifier.fillMaxSize()
                 )
             } else {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Icon(
-                        Icons.Filled.Movie,
-                        contentDescription = null,
-                        tint = FaintInk,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+                ShimmerBox(Modifier.fillMaxSize())
             }
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(3.dp)
-                    .background(Color(0x99000000), RoundedCornerShape(4.dp))
-                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                    .padding(6.dp)
+                    .background(Color(0x99000000), RoundedCornerShape(Radius.xs))
+                    .padding(horizontal = 5.dp, vertical = 2.dp)
             ) {
                 Text(
                     fmtMs(item.durationMs),
@@ -271,27 +352,14 @@ fun VideoRow(item: VideoItem, onClick: () -> Unit) {
                 )
             }
         }
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                item.title,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = Ink
-            )
-            Text(
-                "Video · ketuk untuk memutar",
-                style = MaterialTheme.typography.bodySmall,
-                color = MutedInk
-            )
-        }
-        Icon(
-            Icons.Filled.PlayArrow,
-            contentDescription = "Putar video",
-            tint = MutedInk,
-            modifier = Modifier.size(26.dp)
+        Spacer(Modifier.height(Space.sm))
+        Text(
+            item.title,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = Ink
         )
     }
 }
@@ -354,6 +422,9 @@ fun VideoPlayerScreen(
     /** Kunci layar: semua sentuhan ditahan sampai dibuka. */
     var locked by remember { mutableStateOf(false) }
     val inPip by VideoPlayback.inPip
+    // U5: getaran halus pada aksi penting (geser kecerahan sengaja tidak
+    // digetarkan supaya tidak berdebar terus saat jari menggeser)
+    val haptic = LocalHapticFeedback.current
 
     // subtitle di sebelah video (.srt / .vtt / .ttml)
     val subtitleFile = remember(item.contentUri) { LyricsLoader.subtitleFile(item.filePath) }
@@ -589,6 +660,7 @@ fun VideoPlayerScreen(
                                 detectTapGestures(
                                     onTap = { controls = !controls },
                                     onDoubleTap = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         skipBy(-10)
                                         seekFlash = -1
                                     }
@@ -611,6 +683,7 @@ fun VideoPlayerScreen(
                                 detectTapGestures(
                                     onTap = { controls = !controls },
                                     onDoubleTap = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         skipBy(10)
                                         seekFlash = 1
                                     }
@@ -813,15 +886,18 @@ fun VideoPlayerScreen(
 
             // 4) play besar di tengah
             if (!playing || ended) {
+                val playInteraction = remember { MutableInteractionSource() }
                 Box(
                     modifier = Modifier
                         .size(76.dp)
                         .background(Color(0x99000000), CircleShape)
-                        .align(Alignment.Center)
-                        .clickable {
+                        .pressScale(playInteraction)
+                        .clickable(interactionSource = playInteraction, indication = null) {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             if (ended) exo?.seekTo(0L)
                             exo?.play()
-                        },
+                        }
+                        .align(Alignment.Center),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -833,30 +909,24 @@ fun VideoPlayerScreen(
                 }
             }
 
-            // 5) kontrol bawah
+            // 5) kontrol bawah — latar memudar (U7), bukan kotak gelap bertepi
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color(0x00000000), Color(0xB3000000), Color(0xE6000000))
+                        )
+                    )
                     .navigationBarsPadding()
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 24.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(18.dp)
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(Color(0x00000000), Color(0xE6000000))
-                            )
-                        )
-                )
                 val dur = durationMs.coerceAtLeast(1L)
                 val shown = if (dragMs >= 0L) dragMs else positionMs
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xE6000000))
                         .padding(horizontal = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -895,6 +965,7 @@ fun VideoPlayerScreen(
                     // menambah sesak bar atas (judul video tetap lega)
                     IconButton(
                         onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             locked = true
                             controls = false
                         }
@@ -909,7 +980,6 @@ fun VideoPlayerScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xE6000000))
                         .padding(bottom = 8.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
@@ -985,7 +1055,10 @@ fun VideoPlayerScreen(
                         .padding(start = 12.dp, top = 12.dp)
                         .clip(RoundedCornerShape(Radius.pill))
                         .background(Color(0xCC000000))
-                        .clickable { locked = false }
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            locked = false
+                        }
                         .padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

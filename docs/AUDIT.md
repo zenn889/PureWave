@@ -154,6 +154,11 @@ Pemutar video: lanjut otomatis dengan hitung mundur 5 detik (aturan di
 Tombol/gestur kembali tidak lagi menutup aplikasi: `BackHandler` di pemutar
 video (terkunci → buka kunci; PiP → diserahkan ke sistem) dan di tampilan
 detail album/artis/folder; aturan dicatat di ARCHITECTURE `4l` — v2.24.4.
+Tampilan (U1–U7): transisi `AnimatedContent` dengan `ContentKey`, animasi mini
+player & pemutar video, beranda `revealOnOpen`, kartu "Lanjutkan mendengarkan",
+placeholder bergradien+inisial, shimmer miniatur, kisi video 2 kolom + simpanan
+miniatur ke disk, getaran halus; aturan gerak di ARCHITECTURE `4m`; total 77
+tes — v2.24.5.
 
 Catatan: hasil normalisasi volume tetap perlu dinilai telinga di HP, karena
 mesin build ini tidak punya perangkat audio. Yang bisa dibuktikan di sini
